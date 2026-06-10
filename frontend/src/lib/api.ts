@@ -16,6 +16,7 @@ import type {
   TraceSummary,
   TrendPoint,
   Webhook,
+  Paged,
 } from "./types";
 
 let _token: string | null = null;
@@ -33,13 +34,21 @@ function authHeaders(extra: Record<string, string> = {}): Record<string, string>
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let detail = res.statusText;
+    let requestId = res.headers.get("X-Request-ID") ?? undefined;
     try {
       const body = await res.json();
-      detail = body.detail ?? JSON.stringify(body);
+      // New error envelope: { error: { code, message, request_id, details? } }
+      if (body.error) {
+        detail = body.error.message ?? detail;
+        requestId = body.error.request_id ?? requestId;
+      } else {
+        detail = body.detail ?? JSON.stringify(body);
+      }
     } catch {
       /* ignore */
     }
-    throw new Error(`${res.status}: ${detail}`);
+    const suffix = requestId ? ` (request ${requestId})` : "";
+    throw new Error(`${res.status}: ${detail}${suffix}`);
   }
   return (await res.json()) as T;
 }
@@ -101,8 +110,10 @@ export const api = {
     return jsonOrThrow(await fetch("/api/stats", { headers: authHeaders() }));
   },
 
-  async listTraces(limit = 50): Promise<TraceSummary[]> {
-    return jsonOrThrow(await fetch(`/api/traces?limit=${limit}`, { headers: authHeaders() }));
+  async listTraces(limit = 50, offset = 0): Promise<Paged<TraceSummary>> {
+    return jsonOrThrow(
+      await fetch(`/api/traces?limit=${limit}&offset=${offset}`, { headers: authHeaders() }),
+    );
   },
 
   // ---- Gate ----
@@ -159,8 +170,8 @@ export const api = {
   },
 
   // ---- Audit ----
-  async listAudit(action?: string, limit = 100): Promise<AuditEntry[]> {
-    const q = new URLSearchParams({ limit: String(limit) });
+  async listAudit(action?: string, limit = 100, offset = 0): Promise<Paged<AuditEntry>> {
+    const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     if (action) q.set("action", action);
     return jsonOrThrow(await fetch(`/api/audit?${q}`, { headers: authHeaders() }));
   },

@@ -43,6 +43,13 @@ def get_cipher(request: Request):
     return request.app.state.cipher
 
 
+def page_params(limit: int | None = None, offset: int | None = None):
+    """Clamped pagination params from query string (limit<=200, offset>=0)."""
+    from app.pagination import PageParams
+
+    return PageParams.of(limit=limit, offset=offset)
+
+
 async def db_session(db: Database = Depends(get_db)) -> AsyncIterator[AsyncSession]:
     async with db.session() as session:
         yield session

@@ -16,6 +16,9 @@ def api_settings():
         database_dsn="sqlite+aiosqlite:///:memory:",
         jwt_secret="test-secret",
         use_mocks=True,
+        # Don't do real DNS resolution for webhook URLs in API tests; the SSRF
+        # guard's resolution path is covered directly in test_url_safety.py.
+        webhook_resolve_dns=False,
     )
 
 

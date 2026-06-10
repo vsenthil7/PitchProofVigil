@@ -38,6 +38,26 @@ test.describe("Analytics, Audit, Webhooks", () => {
     await expect(page.getByTestId("audit-row").first()).toBeVisible();
   });
 
+  test("audit list paginates with load-more", async ({ page }) => {
+    // Generate enough audit entries to exceed one page (page size 25).
+    for (let i = 0; i < 27; i++) {
+      await page.getByTestId("ask-input").fill("which gate do I use");
+      await page.getByTestId("ask-btn").click();
+      await expect(page.getByTestId("ask-result")).toBeVisible();
+    }
+    await page.getByTestId("tab-audit").click();
+    await expect(page.getByTestId("audit-view")).toBeVisible();
+    // First page caps at 25 rows; a load-more button is present.
+    await expect(page.getByTestId("audit-load-more")).toBeVisible();
+    const before = await page.getByTestId("audit-row").count();
+    expect(before).toBe(25);
+    await page.getByTestId("audit-load-more").click();
+    // After loading more, additional rows are appended.
+    await expect(async () => {
+      expect(await page.getByTestId("audit-row").count()).toBeGreaterThan(before);
+    }).toPass();
+  });
+
   test("audit filter applies", async ({ page }) => {
     await page.getByTestId("ask-input").fill("which gate do I use");
     await page.getByTestId("ask-btn").click();

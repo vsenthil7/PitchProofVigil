@@ -74,7 +74,7 @@ def test_malformed_auth_header(client):
 def test_traces_and_stats(owner_auth):
     client, headers, _ = owner_auth
     client.post("/api/ask", headers=headers, json={"text": "I want to buy a ticket"})
-    traces = client.get("/api/traces", headers=headers).json()
+    traces = client.get("/api/traces", headers=headers).json()["items"]
     assert len(traces) == 1
     tid = traces[0]["trace_id"]
     detail = client.get(f"/api/traces/{tid}", headers=headers)

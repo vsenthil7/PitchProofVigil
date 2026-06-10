@@ -95,6 +95,12 @@ class Settings:
     encryption_keys: str = field(
         default_factory=lambda: os.getenv("ENCRYPTION_KEYS", "")
     )
+    webhook_allow_http: bool = field(
+        default_factory=lambda: os.getenv("WEBHOOK_ALLOW_HTTP", "false").lower() == "true"
+    )
+    webhook_resolve_dns: bool = field(
+        default_factory=lambda: os.getenv("WEBHOOK_RESOLVE_DNS", "true").lower() == "true"
+    )
 
     @property
     def gemini_available(self) -> bool:

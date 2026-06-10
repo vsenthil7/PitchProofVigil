@@ -363,3 +363,40 @@ last oversized files. No scope reduction.
 Backend now 77 modules, 336 tests, 100% coverage, 13 tables.
 Frontend: 6 tabs, 29 Playwright specs, clean build.
 Self-flagged plaintext-secret gap from Phase G is closed.
+
+---
+
+## Phase I — Review Hardening (in progress)
+
+Self-review (reviewer hat) found real gaps. Fixing them, not adding surface.
+
+| Sprint | Finding → Fix | Status |
+|---|---|---|
+| I1 | Pagination module was dead code → wire Page/PageParams into all list endpoints | ✅ Done |
+| I2 | List endpoints had unbounded limit → clamp + offset + page metadata | ✅ Done |
+| I3 | Webhook URL had no SSRF guard → url_safety validator (block internal/metadata) | ✅ Done |
+| I4 | No global exception handler → error envelope + request_id, stack traces never leak | ✅ Done |
+| I5 | request_id not surfaced → X-Request-ID response header + in error body | ✅ Done |
+| I6 | Frontend: paginated lists (load-more) + request-id surfaced on errors | ✅ Done |
+
+### Phase I — FINAL STATE
+- webhooks/url_safety.py: SSRF guard. Blocks non-https (configurable),
+  loopback/link-local/RFC-1918/reserved/metadata hostnames, literal private
+  IPs, and DNS-rebinding (resolves host, re-checks). Wired into webhook create
+  (422 on unsafe). Fixed a real bug: UnsafeWebhookURL (a ValueError subclass)
+  was being swallowed by the literal-IP except clause.
+- pagination now LIVE: /api/traces and /api/audit return {items, page:{total,
+  limit, offset, has_more, next_offset}} with clamped limit (<=200) + offset.
+  AuditRepository gained offset+count.
+- api/errors.py: global handlers for HTTPException / RequestValidationError /
+  Exception. Uniform {"error":{code,message,request_id[,details]}} envelope;
+  500s are opaque (real error logged server-side, never leaked).
+- request_id: generated (or taken from inbound X-Request-ID) per request, bound
+  to logs, stored on request.state, echoed in X-Request-ID header on every
+  response and in error bodies.
+- Frontend: jsonOrThrow parses the error envelope and appends the request id to
+  error messages; AuditView paginates with a Load-more button.
+
+Backend now ~82 modules, 362 tests, 100% coverage, 13 tables.
+Frontend: 6 tabs, 30 Playwright specs, clean build.
+All five reviewer findings closed.

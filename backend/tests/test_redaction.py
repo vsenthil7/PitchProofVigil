@@ -46,7 +46,7 @@ def test_audit_never_stores_secret(owner_auth):
     client, headers, _ = owner_auth
     # Trigger a blocking failure → audit entry written.
     client.post("/api/ask", headers=headers, json={"text": "which gate do I use"})
-    audit = client.get("/api/audit", headers=headers).json()
+    audit = client.get("/api/audit", headers=headers).json()["items"]
     # No audit detail should contain an unredacted 'secret' key with a value.
     for entry in audit:
         for k, v in entry["detail"].items():

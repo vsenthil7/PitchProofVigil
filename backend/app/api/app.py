@@ -7,12 +7,14 @@ schema (for dev/test; production uses Alembic).
 from __future__ import annotations
 
 import time
+from uuid import uuid4
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.errors import install_error_handlers
 from app.api.routers import all_routers
 from app.core.config import Settings, get_settings
 from app.crypto import FieldCipher, KeyProvider
@@ -89,12 +91,17 @@ def create_app(
     @app.middleware("http")
     async def observe(request: Request, call_next):
         start = time.perf_counter()
-        bind_request_context(path=request.url.path, method=request.method)
+        request_id = request.headers.get("x-request-id") or uuid4().hex
+        request.state.request_id = request_id
+        bind_request_context(
+            request_id=request_id, path=request.url.path, method=request.method
+        )
         try:
             response = await call_next(request)
         finally:
             clear_request_context()
         duration = time.perf_counter() - start
+        response.headers["X-Request-ID"] = request_id
         app.state.metrics.observe_http(
             request.method, request.url.path, getattr(response, "status_code", 500), duration
         )
@@ -102,6 +109,7 @@ def create_app(
 
     for router in all_routers:
         app.include_router(router)
+    install_error_handlers(app)
     return app
 
 

@@ -8,11 +8,15 @@ export function AuditView() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [filter, setFilter] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
 
-  const load = (action?: string) => {
+  const load = (action?: string, offset = 0) => {
     api
-      .listAudit(action || undefined)
-      .then(setEntries)
+      .listAudit(action || undefined, 25, offset)
+      .then((paged) => {
+        setEntries((prev) => (offset === 0 ? paged.items : [...prev, ...paged.items]));
+        setNextOffset(paged.page.next_offset);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : "failed"));
   };
 
@@ -35,7 +39,7 @@ export function AuditView() {
           onChange={(e) => setFilter(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && load(filter)}
         />
-        <button className="btn btn-ghost" data-testid="audit-apply" onClick={() => load(filter)}>
+        <button className="btn btn-ghost" data-testid="audit-apply" onClick={() => load(filter, 0)}>
           Apply
         </button>
       </div>
@@ -47,18 +51,30 @@ export function AuditView() {
           no audit entries yet
         </div>
       ) : (
-        <div className="audit-list" data-testid="audit-list">
-          {entries.map((e) => (
-            <div className="audit-row" key={e.id} data-testid="audit-row">
-              <span className="audit-action">{e.action}</span>
-              <span className="audit-target">{e.target || "—"}</span>
-              <span className="audit-actor">{e.actor}</span>
-              <span className="audit-time">
-                {new Date(e.created_at).toLocaleString()}
-              </span>
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="audit-list" data-testid="audit-list">
+            {entries.map((e) => (
+              <div className="audit-row" key={e.id} data-testid="audit-row">
+                <span className="audit-action">{e.action}</span>
+                <span className="audit-target">{e.target || "—"}</span>
+                <span className="audit-actor">{e.actor}</span>
+                <span className="audit-time">
+                  {new Date(e.created_at).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+          {nextOffset != null && (
+            <button
+              className="btn btn-ghost"
+              data-testid="audit-load-more"
+              style={{ marginTop: 12 }}
+              onClick={() => load(filter, nextOffset)}
+            >
+              Load more
+            </button>
+          )}
+        </>
       )}
     </section>
   );

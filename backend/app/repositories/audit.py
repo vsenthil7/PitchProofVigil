@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import AuditLogRow, WebhookSubscriptionRow
@@ -32,14 +32,23 @@ class AuditRepository:
         await self.session.flush()
         return row
 
-    async def list(self, limit: int = 100) -> list[AuditLogRow]:
+    async def list(self, limit: int = 100, offset: int = 0) -> list[AuditLogRow]:
         stmt = (
             select(AuditLogRow)
             .where(AuditLogRow.tenant_id == self.tenant_id)
             .order_by(desc(AuditLogRow.created_at))
             .limit(limit)
+            .offset(offset)
         )
         return list((await self.session.execute(stmt)).scalars().all())
+
+    async def count(self) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(AuditLogRow)
+            .where(AuditLogRow.tenant_id == self.tenant_id)
+        )
+        return int((await self.session.execute(stmt)).scalar() or 0)
 
     async def filter_by_action(self, action: str, limit: int = 100) -> list[AuditLogRow]:
         stmt = (

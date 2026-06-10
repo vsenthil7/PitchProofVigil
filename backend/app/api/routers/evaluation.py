@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
+    page_params,
     active_policy,
     db_session,
     get_metrics_dep,
@@ -93,13 +94,16 @@ async def ask(
 
 @router.get("/traces")
 async def list_traces(
-    limit: int = 50,
     principal: Principal = Depends(require(Permission.READ)),
     session: AsyncSession = Depends(db_session),
-) -> list[dict]:
+    page=Depends(page_params),
+) -> dict:
+    from app.pagination import paginate
+
     repo = TraceRepository(session, principal.tenant_id)
-    rows = await repo.list(limit=limit)
-    return [
+    rows = await repo.list(limit=page.limit, offset=page.offset)
+    total = await repo.count()
+    items = [
         {
             "trace_id": r.id,
             "request_text": r.request_text,
@@ -110,6 +114,8 @@ async def list_traces(
         }
         for r in rows
     ]
+    result = paginate(items, total, page)
+    return {"items": result.items, "page": result.meta()}
 
 
 @router.get("/traces/{trace_id}")

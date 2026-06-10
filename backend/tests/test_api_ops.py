@@ -6,7 +6,7 @@ def test_audit_populated_after_blocking_ask(owner_auth):
     client, headers, _ = owner_auth
     # A fact-bearing query with no team → groundedness blocking failure → audit.
     client.post("/api/ask", headers=headers, json={"text": "which gate do I use"})
-    audit = client.get("/api/audit", headers=headers).json()
+    audit = client.get("/api/audit", headers=headers).json()["items"]
     actions = {a["action"] for a in audit}
     assert "eval.blocking_failure" in actions
 
@@ -14,14 +14,14 @@ def test_audit_populated_after_blocking_ask(owner_auth):
 def test_audit_filter_by_action(owner_auth):
     client, headers, _ = owner_auth
     client.post("/api/ask", headers=headers, json={"text": "which gate do I use"})
-    filtered = client.get("/api/audit?action=eval.blocking_failure", headers=headers).json()
+    filtered = client.get("/api/audit?action=eval.blocking_failure", headers=headers).json()["items"]
     assert all(a["action"] == "eval.blocking_failure" for a in filtered)
 
 
 def test_audit_empty_for_clean_ask(owner_auth):
     client, headers, _ = owner_auth
     client.post("/api/ask", headers=headers, json={"text": "I want to buy a ticket"})
-    audit = client.get("/api/audit", headers=headers).json()
+    audit = client.get("/api/audit", headers=headers).json()["items"]
     # Clean ask produces no blocking-failure audit entries.
     assert all(a["action"] != "eval.blocking_failure" for a in audit)
 

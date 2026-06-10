@@ -158,3 +158,18 @@ export interface AnalyticsSummary {
   evaluations: number;
   pass_rate: number;
 }
+
+// ---- Pagination (Phase I) ----
+
+export interface PageMeta {
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+  next_offset: number | null;
+}
+
+export interface Paged<T> {
+  items: T[];
+  page: PageMeta;
+}
