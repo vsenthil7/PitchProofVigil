@@ -1013,3 +1013,28 @@ body::before {
   color: var(--chalk-faint);
   background: var(--pitch-900);
 }
+
+/* H6: encryption status banner */
+.security-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+}
+.security-banner.ok {
+  background: rgba(44, 230, 155, 0.1);
+  border-color: var(--signal-dim);
+  color: var(--signal);
+}
+.security-banner.warn {
+  background: rgba(245, 197, 66, 0.1);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.security-icon {
+  font-size: 14px;
+}

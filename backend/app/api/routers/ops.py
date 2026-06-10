@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import db_session, require
+from app.api.deps import db_session, get_cipher, require
 from app.api.schemas.ops import (
     AuditEntryOut,
     CreateWebhookRequest,
@@ -47,8 +47,9 @@ async def create_webhook(
     body: CreateWebhookRequest,
     principal: Principal = Depends(require(Permission.MANAGE_POLICIES)),
     session: AsyncSession = Depends(db_session),
+    cipher=Depends(get_cipher),
 ) -> WebhookOut:
-    repo = WebhookRepository(session, principal.tenant_id)
+    repo = WebhookRepository(session, principal.tenant_id, cipher=cipher)
     row = await repo.create(body.url, body.event_type, body.secret)
     return WebhookOut(
         id=row.id, url=row.url, event_type=row.event_type, active=row.active, last_status=row.last_status

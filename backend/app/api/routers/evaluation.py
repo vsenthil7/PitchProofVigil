@@ -38,7 +38,9 @@ async def ask(
     # Unified event bus: audit persistence, metrics, and live webhook delivery.
     from app.notifications import build_event_bus
 
-    bus = build_event_bus(session, principal.tenant_id, metrics)
+    bus = build_event_bus(
+        session, principal.tenant_id, metrics, cipher=request.app.state.cipher
+    )
     service = EvaluationService(
         tenant_id=principal.tenant_id,
         orchestrator=orchestrator,

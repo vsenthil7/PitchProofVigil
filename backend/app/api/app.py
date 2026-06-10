@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.routers import all_routers
 from app.core.config import Settings, get_settings
+from app.crypto import FieldCipher, KeyProvider
 from app.ratelimit import RateLimiter
 from app.db.engine import Database
 from app.evaluators.registry import build_default_registry
@@ -67,6 +68,7 @@ def create_app(
         capacity=settings.rate_limit_capacity,
         refill_per_second=settings.rate_limit_refill_per_second,
     )
+    app.state.cipher = FieldCipher(KeyProvider(settings))
 
     @app.middleware("http")
     async def rate_limit(request: Request, call_next):

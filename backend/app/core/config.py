@@ -92,6 +92,9 @@ class Settings:
     rate_limit_refill_per_second: float = field(
         default_factory=lambda: float(os.getenv("RATE_LIMIT_REFILL_PER_SECOND", "10"))
     )
+    encryption_keys: str = field(
+        default_factory=lambda: os.getenv("ENCRYPTION_KEYS", "")
+    )
 
     @property
     def gemini_available(self) -> bool:

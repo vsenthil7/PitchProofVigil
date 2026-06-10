@@ -22,13 +22,14 @@ def build_event_bus(
     tenant_id: str,
     metrics: Metrics,
     http_client: httpx.AsyncClient | None = None,
+    cipher=None,
 ) -> EventBus:
     """Assemble an EventBus with audit, metrics, and webhook handlers."""
     bus = EventBus()
     bus.subscribe_all(AuditHandler(AuditRepository(session, tenant_id)))
     bus.subscribe_all(MetricsHandler(metrics))
     delivery = WebhookDeliveryService(
-        WebhookRepository(session, tenant_id), client=http_client
+        WebhookRepository(session, tenant_id, cipher=cipher), client=http_client
     )
     bus.subscribe_all(WebhookHandler(delivery))
     return bus

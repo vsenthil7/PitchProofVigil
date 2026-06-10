@@ -326,3 +326,40 @@ Closing the F7 gap and adding the next tier. No scope reduction.
 Backend now 70 modules, 317 tests, 100% coverage, 13 tables.
 Frontend: 6 tabs, 29 Playwright specs, clean build.
 Webhook delivery is now genuinely live end-to-end (the F7 gap is closed).
+
+---
+
+## Phase H — Secrets, Crypto & Final Modularization (in progress)
+
+Addresses the self-flagged plaintext-secret gap and finishes splitting the
+last oversized files. No scope reduction.
+
+| Sprint | Module | Status |
+|---|---|---|
+| H1 | crypto/ package: Fernet envelope encryption + key provider | ✅ Done |
+| H2 | Encrypt webhook secrets at rest (transparent encrypt/decrypt) | ✅ Done |
+| H3 | Secret redaction in logs + API responses (never echo secrets) | ✅ Done |
+| H4 | Split evaluators/correctness into correctness/ sub-package | ✅ Done |
+| H5 | Split datasets/eval_service into datasets/ workflow modules | ✅ Done |
+| H6 | Frontend: secret-write-only UX + encryption-status surface | ✅ Done |
+
+### Phase H — FINAL STATE
+- crypto/ package: KeyProvider (MultiFernet key ring, env ENCRYPTION_KEYS,
+  derived dev key) + FieldCipher (versioned enc:v1: prefix, legacy-plaintext
+  tolerance, rotate()) + redaction (recursive secret masking). Full rotation
+  lifecycle tested: encrypt old -> decrypt on 2-key ring -> re-encrypt ->
+  read on new-key-only ring.
+- Webhook secrets encrypted at rest: ciphertext in the column (verified by
+  raw-column inspection), decrypted transparently on read, plaintext only
+  in-memory for signing. SQLAlchemy identity-map overwrite bug fixed via expunge.
+- Redaction applied to audit payloads; WebhookOut never returns the secret;
+  /api/security/status reports encryption posture (no secrets).
+- evaluators/correctness/ sub-package (factual, grounding, hallucination,
+  _shared); datasets/mapping.py extracted from eval_service. No kitchen-sink
+  files remain.
+- Frontend: encryption-status banner (ok/warn for ephemeral dev key) on the
+  webhooks tab; secret field is write-only (clears on submit, never echoed).
+
+Backend now 77 modules, 336 tests, 100% coverage, 13 tables.
+Frontend: 6 tabs, 29 Playwright specs, clean build.
+Self-flagged plaintext-secret gap from Phase G is closed.

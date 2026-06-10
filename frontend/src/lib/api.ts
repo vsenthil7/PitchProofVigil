@@ -149,6 +149,15 @@ export const api = {
     return jsonOrThrow(await fetch("/ready"));
   },
 
+  async securityStatus(): Promise<{
+    encryption_at_rest: boolean;
+    key_ring_size: number;
+    using_ephemeral_dev_key: boolean;
+    rotation_supported: boolean;
+  }> {
+    return jsonOrThrow(await fetch("/api/security/status"));
+  },
+
   // ---- Audit ----
   async listAudit(action?: string, limit = 100): Promise<AuditEntry[]> {
     const q = new URLSearchParams({ limit: String(limit) });

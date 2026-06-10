@@ -55,16 +55,31 @@ class AuditRepository:
 
 
 class WebhookRepository:
-    def __init__(self, session: AsyncSession, tenant_id: str) -> None:
+    def __init__(self, session: AsyncSession, tenant_id: str, cipher=None) -> None:
         self.session = session
         self.tenant_id = tenant_id
+        # Optional FieldCipher: when present, secrets are encrypted at rest and
+        # transparently decrypted on read. When absent, secrets pass through
+        # (keeps unit tests that don't care about crypto simple).
+        self.cipher = cipher
+
+    def _decrypt_secret(self, row: WebhookSubscriptionRow) -> WebhookSubscriptionRow:
+        if self.cipher is not None and row is not None:
+            row.secret = self.cipher.decrypt(row.secret or "")
+        return row
 
     async def create(self, url: str, event_type: str, secret: str = "") -> WebhookSubscriptionRow:
+        stored_secret = self.cipher.encrypt(secret) if self.cipher is not None else secret
         row = WebhookSubscriptionRow(
-            tenant_id=self.tenant_id, url=url, event_type=event_type, secret=secret
+            tenant_id=self.tenant_id, url=url, event_type=event_type, secret=stored_secret
         )
         self.session.add(row)
         await self.session.flush()
+        await self.session.refresh(row)
+        # Expunge so returning plaintext to the caller doesn't overwrite the
+        # persisted ciphertext via the identity map.
+        self.session.expunge(row)
+        row.secret = secret
         return row
 
     async def for_event(self, event_type: str) -> list[WebhookSubscriptionRow]:
@@ -73,7 +88,8 @@ class WebhookRepository:
             WebhookSubscriptionRow.event_type == event_type,
             WebhookSubscriptionRow.active == True,  # noqa: E712
         )
-        return list((await self.session.execute(stmt)).scalars().all())
+        rows = list((await self.session.execute(stmt)).scalars().all())
+        return [self._decrypt_secret(r) for r in rows]
 
     async def list(self) -> list[WebhookSubscriptionRow]:
         stmt = select(WebhookSubscriptionRow).where(

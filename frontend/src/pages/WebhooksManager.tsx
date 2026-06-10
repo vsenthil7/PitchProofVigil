@@ -17,6 +17,11 @@ export function WebhooksManager() {
   const [eventType, setEventType] = useState(EVENT_TYPES[2]);
   const [secret, setSecret] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [security, setSecurity] = useState<{
+    encryption_at_rest: boolean;
+    key_ring_size: number;
+    using_ephemeral_dev_key: boolean;
+  } | null>(null);
 
   const load = () => {
     api
@@ -27,6 +32,7 @@ export function WebhooksManager() {
 
   useEffect(() => {
     load();
+    api.securityStatus().then(setSecurity).catch(() => setSecurity(null));
   }, []);
 
   const create = async () => {
@@ -56,6 +62,25 @@ export function WebhooksManager() {
       <div className="panel-head">
         <span className="panel-title">Webhook Subscriptions</span>
       </div>
+
+      {security && (
+        <div
+          className={`security-banner ${security.using_ephemeral_dev_key ? "warn" : "ok"}`}
+          data-testid="security-banner"
+        >
+          <span className="security-icon" aria-hidden>
+            {security.using_ephemeral_dev_key ? "⚠" : "🔒"}
+          </span>
+          <span>
+            {security.encryption_at_rest
+              ? `Secrets encrypted at rest (key ring: ${security.key_ring_size})`
+              : "Secrets are NOT encrypted"}
+            {security.using_ephemeral_dev_key
+              ? " — using an ephemeral dev key; set ENCRYPTION_KEYS in production."
+              : "."}
+          </span>
+        </div>
+      )}
 
       <div className="console-row" style={{ marginBottom: 12 }}>
         <input

@@ -38,10 +38,12 @@ class AuditHandler:
         action = self.ACTIONS.get(event.type)
         if action is None:
             return
+        from app.crypto.redaction import redact
+
         await self.audit_repo.record(
             action=action,
             target=str(event.payload.get("candidate") or event.payload.get("trace_id") or ""),
-            detail=event.payload,
+            detail=redact(event.payload),
         )
 
 

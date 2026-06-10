@@ -39,6 +39,10 @@ def get_metrics_dep(request: Request):
     return request.app.state.metrics
 
 
+def get_cipher(request: Request):
+    return request.app.state.cipher
+
+
 async def db_session(db: Database = Depends(get_db)) -> AsyncIterator[AsyncSession]:
     async with db.session() as session:
         yield session

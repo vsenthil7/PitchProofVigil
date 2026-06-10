@@ -8,7 +8,7 @@ a metric. The baseline lookup makes regression detection automatic.
 from __future__ import annotations
 
 from app.core.models import ConciergeRequest, Language
-from app.datasets.eval_service import build_trace
+from app.datasets.mapping import build_trace
 from app.db.models import GateDecisionRow
 from app.evaluators.candidate_gate import CandidateGate, CandidateGateResult
 from app.evaluators.scoring import GatePolicy, ScoringEngine

@@ -53,11 +53,15 @@ test.describe("Analytics, Audit, Webhooks", () => {
     await page.getByTestId("tab-webhooks").click();
     await expect(page.getByTestId("webhooks-manager")).toBeVisible();
     await expect(page.getByTestId("webhook-hint")).toBeVisible();
+    // Encryption-status banner is shown.
+    await expect(page.getByTestId("security-banner")).toBeVisible();
     await page.getByTestId("webhook-url").fill("https://hook.example/ppv");
     await page.getByTestId("webhook-event").selectOption("gate_decided");
     await page.getByTestId("webhook-secret").fill("my-signing-secret");
     await page.getByTestId("webhook-create").click();
     await expect(page.getByTestId("webhook-row").first()).toBeVisible();
+    // Secret field is write-only: it clears after submit and is never echoed back.
+    await expect(page.getByTestId("webhook-secret")).toHaveValue("");
     // Delivery badge shows "no delivery" until an event fires.
     await expect(page.locator('[data-testid^="delivery-"]').first()).toContainText("no delivery");
     // Remove it.
