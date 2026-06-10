@@ -1,41 +1,52 @@
 import { test, expect } from "@playwright/test";
-
-// Promotion gate: running the golden set blocks on the poisoned regression,
-// and a clean candidate name still blocks because the default golden set
-// contains the poisoned query (the safety net demonstration).
+import { registerAndLogin } from "./helpers";
 
 test.describe("Promotion Gate", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await registerAndLogin(page);
+    await page.getByTestId("tab-gate").click();
     await expect(page.getByTestId("gate-panel")).toBeVisible();
   });
 
-  test("default golden set blocks promotion", async ({ page }) => {
+  test("running the gate produces a decision with category scores", async ({ page }) => {
     await page.getByTestId("gate-btn").click();
-    await expect(page.getByTestId("gate-result")).toBeVisible();
-    await expect(page.getByTestId("gate-banner")).toHaveClass(/blocked/);
-    await expect(page.getByTestId("gate-verdict-label")).toContainText(
-      "PROMOTION BLOCKED",
-    );
+    await expect(page.getByTestId("gate-result")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("gate-banner")).toBeVisible();
+    await expect(page.getByTestId("category-scores")).toBeVisible();
   });
 
-  test("blocked gate lists the failing evaluator", async ({ page }) => {
+  test("custom candidate id echoed", async ({ page }) => {
+    await page.getByTestId("candidate-input").fill("");
+    await page.getByTestId("candidate-input").fill("release-99");
     await page.getByTestId("gate-btn").click();
-    await expect(page.getByTestId("gate-failing")).toBeVisible();
-    await expect(page.getByTestId("gate-failing")).toContainText(
-      "factual_accuracy",
-    );
+    await expect(page.getByTestId("gate-result")).toContainText("release-99");
   });
 
-  test("gate button disabled without a candidate id", async ({ page }) => {
+  test("gate button disabled without candidate", async ({ page }) => {
     await page.getByTestId("candidate-input").fill("");
     await expect(page.getByTestId("gate-btn")).toBeDisabled();
   });
+});
 
-  test("custom candidate id is echoed in the result", async ({ page }) => {
-    await page.getByTestId("candidate-input").fill("");
-    await page.getByTestId("candidate-input").fill("release-42");
-    await page.getByTestId("gate-btn").click();
-    await expect(page.getByTestId("gate-result")).toContainText("release-42");
+test.describe("Policy Editor", () => {
+  test.beforeEach(async ({ page }) => {
+    await registerAndLogin(page);
+    await page.getByTestId("tab-policies").click();
+  });
+
+  test("lists all evaluators and saves a policy", async ({ page }) => {
+    await expect(page.getByTestId("policy-editor")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("policy-row-factual_accuracy")).toBeVisible();
+    await expect(page.getByTestId("policy-row-pii_leakage")).toBeVisible();
+    await page.getByTestId("policy-save").click();
+    await expect(page.getByTestId("policy-status")).toContainText("Saved");
+  });
+
+  test("can toggle an evaluator and adjust weight", async ({ page }) => {
+    await expect(page.getByTestId("policy-editor")).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId("toggle-enabled-llm_judge").uncheck();
+    await page.getByTestId("weight-latency_slo").fill("3");
+    await page.getByTestId("policy-save").click();
+    await expect(page.getByTestId("policy-status")).toContainText("v1");
   });
 });

@@ -1,0 +1,13 @@
+[run]
+source = app
+concurrency = thread,greenlet
+omit =
+    app/*/__init__.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    \.\.\.
+show_missing = True

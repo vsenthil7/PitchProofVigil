@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 import type { AskResponse, Language } from "../lib/types";
-import { VerdictBadge } from "./VerdictBadge";
+import { CategoryScores } from "./CategoryScores";
+import { CostPanel } from "./CostPanel";
+import { EvalList } from "./EvalList";
 
 const QUICK_QUERIES = [
   "When does Spain play Germany?",
-  "When does France play England?",
   "What gate for Brazil section 114?",
   "I want to buy a ticket",
+  "hotel near France England match",
 ];
 
 const LANGS: Language[] = ["en", "es", "fr", "de", "pt"];
@@ -16,9 +18,8 @@ interface Props {
   onTraceAdded: () => void;
 }
 
-// The live console: operator types a fan query, the agent answers, and the
-// eval verdicts render immediately beneath — the "trace → eval verdict" half
-// of the demo loop.
+// Live console: ask the agent, then see the answer plus the full evaluation
+// report — aggregate verdict, category bars, per-evaluator drill-down, cost.
 export function Console({ onTraceAdded }: Props) {
   const [text, setText] = useState("");
   const [language, setLanguage] = useState<Language>("en");
@@ -109,28 +110,38 @@ export function Console({ onTraceAdded }: Props) {
         <div data-testid="ask-result">
           <div className="answer">
             <p className="answer-text" data-testid="answer-text">
-              {result.trace.response?.text}
+              {result.answer}
             </p>
             <div className="answer-meta">
-              <span>intent: {result.trace.response?.detected_intent}</span>
-              <span>model: {result.trace.response?.model}</span>
-              <span>
-                latency: {result.trace.response?.latency_ms.toFixed(2)}ms
-              </span>
-              <span>
-                score: {(result.aggregate_score * 100).toFixed(0)}%
+              <span>intent: {result.intent}</span>
+              <span>model: {result.model}</span>
+              <span>latency: {result.latency_ms.toFixed(2)}ms</span>
+              <span
+                data-testid="aggregate-verdict"
+                style={{ color: result.passed ? "var(--signal)" : "var(--hazard)" }}
+              >
+                {result.passed ? "PASS" : "BLOCK"} · {(result.aggregate_score * 100).toFixed(0)}%
               </span>
             </div>
           </div>
 
-          <div className="evals" data-testid="eval-list">
-            {result.eval_results.map((ev) => (
-              <div className="eval" key={ev.eval_id} data-testid="eval-row">
-                <span className="eval-name">{ev.evaluator}</span>
-                <span className="eval-expl">{ev.explanation}</span>
-                <VerdictBadge verdict={ev.verdict} />
-              </div>
-            ))}
+          <div style={{ marginTop: 14 }}>
+            <span className="panel-title">Category Scores</span>
+            <div style={{ marginTop: 10 }}>
+              <CategoryScores scores={result.category_scores} />
+            </div>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <span className="panel-title">Evaluators ({result.evaluations.length})</span>
+            <EvalList evaluations={result.evaluations} />
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <span className="panel-title">Run Cost</span>
+            <div style={{ marginTop: 10 }}>
+              <CostPanel cost={result.cost} />
+            </div>
           </div>
         </div>
       )}

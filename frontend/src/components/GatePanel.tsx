@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../lib/api";
-import type { GateDecision } from "../lib/types";
-import { VerdictBadge } from "./VerdictBadge";
+import type { GateResponse } from "../lib/types";
+import { CategoryScores } from "./CategoryScores";
 
 const DEFAULT_GOLDEN = [
   "When does Spain play Germany?",
@@ -14,13 +14,22 @@ interface Props {
   onGateRun: () => void;
 }
 
-// Runs the promotion gate across a golden query set and renders the
-// pass/block banner — the "block-on-regression" half of the demo loop. The
-// default golden set includes the poisoned Spain–Germany query so the gate
-// blocks on first run, demonstrating the safety net.
+function DeltaBadge({ value }: { value: number }) {
+  const cls = value > 0.001 ? "up" : value < -0.001 ? "down" : "flat";
+  const sign = value > 0 ? "+" : "";
+  return (
+    <span className={`delta ${cls}`}>
+      {sign}
+      {value.toFixed(2)}
+    </span>
+  );
+}
+
+// Promotion gate: runs a golden set, shows pass/block with category scores,
+// baseline deltas vs the last passing decision, and any regressions.
 export function GatePanel({ onGateRun }: Props) {
   const [candidate, setCandidate] = useState("prompt-v2");
-  const [decision, setDecision] = useState<GateDecision | null>(null);
+  const [decision, setDecision] = useState<GateResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,8 +46,6 @@ export function GatePanel({ onGateRun }: Props) {
       setLoading(false);
     }
   };
-
-  const failing = decision?.eval_results.filter((r) => r.verdict !== "pass") ?? [];
 
   return (
     <section className="panel" data-testid="gate-panel">
@@ -80,32 +87,47 @@ export function GatePanel({ onGateRun }: Props) {
           >
             <div className="gate-icon">{decision.passed ? "✓" : "✕"}</div>
             <div>
-              <div
-                className="gate-verdict-label"
-                data-testid="gate-verdict-label"
-              >
+              <div className="gate-verdict-label" data-testid="gate-verdict-label">
                 {decision.passed ? "PROMOTION ALLOWED" : "PROMOTION BLOCKED"}
               </div>
               <div className="gate-reason">{decision.reason}</div>
               <div className="answer-meta" style={{ marginTop: 8 }}>
                 <span>candidate: {decision.candidate}</span>
-                <span>
-                  aggregate: {(decision.aggregate_score * 100).toFixed(0)}%
-                </span>
-                <span>
-                  threshold: {(decision.threshold * 100).toFixed(0)}%
-                </span>
+                <span>aggregate: {(decision.aggregate_score * 100).toFixed(0)}%</span>
+                <span>threshold: {(decision.threshold * 100).toFixed(0)}%</span>
+                <span>traces: {decision.trace_count}</span>
               </div>
             </div>
           </div>
 
-          {failing.length > 0 && (
-            <div className="evals" data-testid="gate-failing">
-              {failing.map((ev) => (
-                <div className="eval" key={ev.eval_id}>
-                  <span className="eval-name">{ev.evaluator}</span>
-                  <span className="eval-expl">{ev.explanation}</span>
-                  <VerdictBadge verdict={ev.verdict} />
+          <div style={{ marginTop: 14 }}>
+            <span className="panel-title">Category Scores</span>
+            <div style={{ marginTop: 10 }}>
+              <CategoryScores scores={decision.category_scores} />
+            </div>
+          </div>
+
+          {Object.keys(decision.baseline_deltas).length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <span className="panel-title">Baseline Comparison</span>
+              <div className="cat-grid" style={{ marginTop: 10 }}>
+                {Object.entries(decision.baseline_deltas).map(([cat, d]) => (
+                  <div className="cat-row" key={cat} data-testid={`delta-${cat}`}>
+                    <span className="cat-name">{cat}</span>
+                    <span />
+                    <DeltaBadge value={d} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {decision.regressions.length > 0 && (
+            <div className="regression-list" data-testid="regressions">
+              <span className="panel-title">Regressions</span>
+              {decision.regressions.map((r, i) => (
+                <div className="regression-item" key={i}>
+                  ⚠ {r}
                 </div>
               ))}
             </div>

@@ -1,66 +1,147 @@
-// Thin API client over the FastAPI backend. Uses same-origin relative URLs so
-// the Vite proxy (dev) or the reverse proxy (prod) routes to the backend.
+// Enterprise API client. Carries the bearer token on every authenticated call
+// and exposes the full surface: auth, ask, gate, policies, datasets, stats.
 
 import type {
   AskResponse,
-  DriftResponse,
-  GateDecision,
-  HealthResponse,
+  EvaluatorSpec,
+  GateDecisionSummary,
+  GateResponse,
   Language,
-  Trace,
+  Policy,
+  Role,
+  Stats,
+  TokenResponse,
+  TraceSummary,
 } from "./types";
+
+let _token: string | null = null;
+
+export function setToken(token: string | null): void {
+  _token = token;
+}
+
+function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const h: Record<string, string> = { "Content-Type": "application/json", ...extra };
+  if (_token) h["Authorization"] = `Bearer ${_token}`;
+  return h;
+}
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(`API ${res.status}: ${detail}`);
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      detail = body.detail ?? JSON.stringify(body);
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`${res.status}: ${detail}`);
   }
   return (await res.json()) as T;
 }
 
 export const api = {
-  async health(): Promise<HealthResponse> {
-    return jsonOrThrow<HealthResponse>(await fetch("/api/health"));
+  // ---- Auth ----
+  async register(
+    tenantName: string,
+    slug: string,
+    email: string,
+    password: string,
+  ): Promise<{ tenant_id: string; owner_id: string }> {
+    return jsonOrThrow(
+      await fetch("/api/auth/register", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          tenant_name: tenantName,
+          slug,
+          owner_email: email,
+          owner_password: password,
+        }),
+      }),
+    );
   },
 
+  async login(tenantId: string, email: string, password: string): Promise<TokenResponse> {
+    return jsonOrThrow(
+      await fetch("/api/auth/login", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ tenant_id: tenantId, email, password }),
+      }),
+    );
+  },
+
+  async createApiKey(name: string, role: Role): Promise<{ api_key: string; prefix: string }> {
+    return jsonOrThrow(
+      await fetch("/api/auth/api-keys", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ name, role }),
+      }),
+    );
+  },
+
+  // ---- Ask / evaluate ----
   async ask(text: string, language: Language = "en"): Promise<AskResponse> {
-    return jsonOrThrow<AskResponse>(
+    return jsonOrThrow(
       await fetch("/api/ask", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({ text, language }),
       }),
     );
   },
 
-  async listTraces(limit = 50): Promise<Trace[]> {
-    return jsonOrThrow<Trace[]>(await fetch(`/api/traces?limit=${limit}`));
+  async stats(): Promise<Stats> {
+    return jsonOrThrow(await fetch("/api/stats", { headers: authHeaders() }));
   },
 
-  async getTrace(traceId: string): Promise<Trace> {
-    return jsonOrThrow<Trace>(await fetch(`/api/traces/${traceId}`));
+  async listTraces(limit = 50): Promise<TraceSummary[]> {
+    return jsonOrThrow(await fetch(`/api/traces?limit=${limit}`, { headers: authHeaders() }));
   },
 
-  async runGate(
-    candidate: string,
-    queries: string[],
-    language: Language = "en",
-  ): Promise<GateDecision> {
-    return jsonOrThrow<GateDecision>(
+  // ---- Gate ----
+  async runGate(candidate: string, queries: string[], language: Language = "en"): Promise<GateResponse> {
+    return jsonOrThrow(
       await fetch("/api/gate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({ candidate, queries, language }),
       }),
     );
   },
 
-  async drift(): Promise<DriftResponse> {
-    return jsonOrThrow<DriftResponse>(await fetch("/api/drift"));
+  async listDecisions(limit = 50): Promise<GateDecisionSummary[]> {
+    return jsonOrThrow(await fetch(`/api/gate/decisions?limit=${limit}`, { headers: authHeaders() }));
   },
 
-  liveSocketUrl(): string {
-    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${proto}//${window.location.host}/api/live`;
+  // ---- Policies ----
+  async listEvaluators(): Promise<EvaluatorSpec[]> {
+    return jsonOrThrow(await fetch("/api/policies/evaluators", { headers: authHeaders() }));
+  },
+
+  async upsertPolicy(policy: {
+    name: string;
+    threshold: number;
+    fail_on_any_blocking: boolean;
+    evaluator_policies: Record<string, unknown>;
+  }): Promise<Policy> {
+    return jsonOrThrow(
+      await fetch("/api/policies", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(policy),
+      }),
+    );
+  },
+
+  async listPolicies(): Promise<Policy[]> {
+    return jsonOrThrow(await fetch("/api/policies", { headers: authHeaders() }));
+  },
+
+  // ---- Health ----
+  async ready(): Promise<{ ready: boolean }> {
+    return jsonOrThrow(await fetch("/ready"));
   },
 };

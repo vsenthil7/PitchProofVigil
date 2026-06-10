@@ -25,7 +25,7 @@ export default defineConfig({
   webServer: [
     {
       command:
-        "cd ../backend && USE_MOCKS=true python3 -m uvicorn app.api.main:app --port 8000",
+        "cd ../backend && USE_MOCKS=true DATABASE_DSN='sqlite+aiosqlite:///./e2e_test.db' JWT_SECRET=e2e-secret python3 -m uvicorn app.api.app:app --port 8000",
       port: 8000,
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,

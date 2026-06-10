@@ -2,39 +2,67 @@ import { useState } from "react";
 import { TopBar } from "./components/TopBar";
 import { Console } from "./components/Console";
 import { GatePanel } from "./components/GatePanel";
-import { Metrics } from "./components/Metrics";
-import { LiveFeed } from "./components/LiveFeed";
-import { useHealth } from "./hooks/useHealth";
-import { useLiveFeed } from "./hooks/useLiveFeed";
+import { StatsPanel } from "./components/StatsPanel";
+import { useAuth } from "./hooks/useAuth";
+import { useStats } from "./hooks/useStats";
+import { LoginPage } from "./pages/LoginPage";
+import { PolicyEditor } from "./pages/PolicyEditor";
 
-// Root layout for the control room. Left column = operator actions (console +
-// gate); right column = situational awareness (metrics + live feed). A shared
-// refresh counter re-pulls health/drift after any action that adds traces.
-export default function App() {
-  const { health, refresh } = useHealth();
-  const { events, connected } = useLiveFeed();
-  const [refreshKey, setRefreshKey] = useState(0);
+type Tab = "console" | "gate" | "policies";
 
-  const bump = () => {
-    setRefreshKey((k) => k + 1);
-    refresh();
-  };
+// Authenticated control room. Tabs split the operator workflow: live console,
+// promotion gate, and the policy editor. The right rail always shows platform
+// health. Unauthenticated users see the login/register screen.
+function Dashboard() {
+  const { stats, refresh } = useStats();
+  const [tab, setTab] = useState<Tab>("console");
 
   return (
     <div className="app">
-      <TopBar health={health} />
-      <div className="grid">
-        <div>
-          <Console onTraceAdded={bump} />
-          <div className="section-gap">
-            <GatePanel onGateRun={bump} />
+      <TopBar />
+
+      <div className="tabs" data-testid="tabs">
+        <button
+          className={`tab ${tab === "console" ? "active" : ""}`}
+          data-testid="tab-console"
+          onClick={() => setTab("console")}
+        >
+          Console
+        </button>
+        <button
+          className={`tab ${tab === "gate" ? "active" : ""}`}
+          data-testid="tab-gate"
+          onClick={() => setTab("gate")}
+        >
+          Promotion Gate
+        </button>
+        <button
+          className={`tab ${tab === "policies" ? "active" : ""}`}
+          data-testid="tab-policies"
+          onClick={() => setTab("policies")}
+        >
+          Policies
+        </button>
+      </div>
+
+      {tab === "policies" ? (
+        <PolicyEditor />
+      ) : (
+        <div className="grid">
+          <div>
+            {tab === "console" && <Console onTraceAdded={refresh} />}
+            {tab === "gate" && <GatePanel onGateRun={refresh} />}
+          </div>
+          <div>
+            <StatsPanel stats={stats} />
           </div>
         </div>
-        <div>
-          <Metrics health={health} refreshKey={refreshKey} />
-          <LiveFeed events={events} connected={connected} />
-        </div>
-      </div>
+      )}
     </div>
   );
+}
+
+export default function App() {
+  const { session } = useAuth();
+  return session ? <Dashboard /> : <LoginPage />;
 }

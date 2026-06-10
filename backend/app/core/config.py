@@ -65,6 +65,28 @@ class Settings:
         default_factory=lambda: float(os.getenv("REGRESSION_THRESHOLD", "0.85"))
     )
 
+    # Database
+    database_dsn: str = field(
+        default_factory=lambda: os.getenv(
+            "DATABASE_DSN", "sqlite+aiosqlite:///./pitchproof.db"
+        )
+    )
+    db_echo: bool = field(default_factory=lambda: _bool("DB_ECHO", False))
+
+    # Auth / security
+    jwt_secret: str = field(
+        default_factory=lambda: os.getenv("JWT_SECRET", "dev-insecure-secret-change-me")
+    )
+    jwt_algorithm: str = field(
+        default_factory=lambda: os.getenv("JWT_ALGORITHM", "HS256")
+    )
+    access_token_ttl_minutes: int = field(
+        default_factory=lambda: int(os.getenv("ACCESS_TOKEN_TTL_MINUTES", "60"))
+    )
+    api_key_prefix: str = field(
+        default_factory=lambda: os.getenv("API_KEY_PREFIX", "ppv")
+    )
+
     @property
     def gemini_available(self) -> bool:
         return bool(self.google_cloud_project) and not self.use_mocks

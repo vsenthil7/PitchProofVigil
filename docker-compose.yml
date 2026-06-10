@@ -1,8 +1,27 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ppv
+      POSTGRES_PASSWORD: ppv_secret
+      POSTGRES_DB: pitchproof
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ppv"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   backend:
     build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
       USE_MOCKS: "${USE_MOCKS:-true}"
+      DATABASE_DSN: "postgresql://ppv:ppv_secret@db:5432/pitchproof"
+      JWT_SECRET: "${JWT_SECRET:-change-me-in-production}"
       GOOGLE_CLOUD_PROJECT: "${GOOGLE_CLOUD_PROJECT:-}"
       PHOENIX_COLLECTOR_ENDPOINT: "${PHOENIX_COLLECTOR_ENDPOINT:-http://phoenix:6006}"
     ports:

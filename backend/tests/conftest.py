@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import pytest
 
+# Re-export database fixtures so DB-backed tests can use them.
+from tests.db_conftest import db, tenant_id  # noqa: F401
+from tests.api_conftest import api_settings, client, owner_auth  # noqa: F401
+
 from app.core.config import Settings
-from app.core.context import AppContext
 from app.core.models import ConciergeRequest, Language
 
 
@@ -25,11 +28,6 @@ def real_settings() -> Settings:
         arize_api_key="test-key",
         arize_space_id="test-space",
     )
-
-
-@pytest.fixture
-def context(mock_settings: Settings) -> AppContext:
-    return AppContext(mock_settings)
 
 
 @pytest.fixture

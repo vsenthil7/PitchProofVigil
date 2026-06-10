@@ -68,6 +68,9 @@ jobs:
         working-directory: frontend
         env:
           CI: "true"
+          USE_MOCKS: "true"
+          DATABASE_DSN: "sqlite+aiosqlite:///./e2e_ci.db"
+          JWT_SECRET: "ci-secret"
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4

@@ -1,112 +1,129 @@
-// Types mirroring the backend domain models (app/core/models.py).
+// Types mirroring the enterprise API (schemas_v2.py).
 
-export type Language = "en" | "es" | "fr" | "de" | "pt" | "ar" | "ja";
+export type Language = "en" | "es" | "fr" | "de" | "pt";
+export type Role = "owner" | "admin" | "operator" | "viewer";
+export type Verdict = "pass" | "warn" | "fail" | "error" | "skip";
 
-export type IntentType =
-  | "kickoff_time"
-  | "gate_info"
-  | "ticketing"
-  | "travel"
-  | "stadium_nav"
-  | "translation"
-  | "general";
-
-export type SpanKind = "AGENT" | "LLM" | "TOOL" | "RETRIEVER" | "CHAIN";
-
-export type EvalVerdict = "pass" | "fail" | "warn";
-
-export interface ConciergeRequest {
-  request_id: string;
-  text: string;
-  language: Language;
-  session_id: string;
-  created_at: string;
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
 }
 
-export interface ConciergeResponse {
-  request_id: string;
-  text: string;
-  detected_intent: IntentType;
-  language: Language;
-  grounded_facts: Record<string, unknown>;
-  latency_ms: number;
-  model: string;
-  created_at: string;
+export interface Finding {
+  code: string;
+  message: string;
+  severity: string;
+  evidence: Record<string, unknown>;
 }
 
-export interface Span {
-  span_id: string;
-  trace_id: string;
-  parent_id: string | null;
-  name: string;
-  kind: SpanKind;
-  start_time: string;
-  end_time: string | null;
-  attributes: Record<string, unknown>;
-  status: string;
-}
-
-export interface Trace {
-  trace_id: string;
-  request: ConciergeRequest;
-  response: ConciergeResponse | null;
-  spans: Span[];
-  created_at: string;
-}
-
-export interface EvalResult {
-  eval_id: string;
-  trace_id: string;
+export interface EvalOut {
   evaluator: string;
-  verdict: EvalVerdict;
+  category: string;
+  verdict: Verdict;
   score: number;
-  explanation: string;
-  created_at: string;
+  confidence: number;
+  summary: string;
+  findings: Finding[];
+  duration_ms: number;
 }
 
-export interface GateDecision {
+export interface Cost {
+  calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+}
+
+export interface ToolCall {
+  tool: string;
+  ok: boolean;
+  error: string | null;
+}
+
+export interface AskResponse {
+  trace_id: string;
+  answer: string;
+  intent: string;
+  model: string;
+  latency_ms: number;
+  aggregate_score: number;
+  passed: boolean;
+  reason: string;
+  category_scores: Record<string, number>;
+  evaluations: EvalOut[];
+  cost: Cost;
+  tool_calls: ToolCall[];
+}
+
+export interface GateResponse {
   decision_id: string;
   candidate: string;
   passed: boolean;
   aggregate_score: number;
   threshold: number;
-  eval_results: EvalResult[];
+  category_scores: Record<string, number>;
+  baseline_deltas: Record<string, number>;
+  regressions: string[];
+  reason: string;
+  trace_count: number;
+}
+
+export interface EvaluatorSpec {
+  name: string;
+  version: string;
+  category: string;
+  title: string;
+  description: string;
+  default_weight: number;
+  blocking_by_default: boolean;
+}
+
+export interface EvaluatorPolicyIn {
+  enabled?: boolean;
+  weight?: number | null;
+  blocking?: boolean | null;
+  config?: Record<string, unknown>;
+}
+
+export interface Policy {
+  id: string;
+  name: string;
+  version: number;
+  threshold: number;
+  fail_on_any_blocking: boolean;
+  evaluator_policies: Record<string, EvaluatorPolicyIn>;
+  is_active: boolean;
+}
+
+export interface Stats {
+  trace_count: number;
+  by_intent: Record<string, number>;
+  verdict_breakdown: Record<string, number>;
+  failure_rate_by_evaluator: Record<string, number>;
+}
+
+export interface TraceSummary {
+  trace_id: string;
+  request_text: string;
+  intent: string | null;
+  response_text: string | null;
+  latency_ms: number;
+  created_at: string;
+}
+
+export interface GateDecisionSummary {
+  decision_id: string;
+  candidate: string;
+  passed: boolean;
+  aggregate_score: number;
+  category_scores: Record<string, number>;
+  regressions: string[];
   reason: string;
   created_at: string;
 }
 
-export interface AskResponse {
-  trace: Trace;
-  eval_results: EvalResult[];
-  aggregate_score: number;
-}
-
-export interface HealthResponse {
-  status: string;
-  modes: Record<string, string>;
-  trace_count: number;
-}
-
-export interface DriftPoint {
-  window_start: string;
-  window_end: string;
-  intent: IntentType;
-  language: Language;
-  embedding_distance: number;
-  sample_count: number;
-}
-
-export interface DriftResponse {
-  point: DriftPoint;
-  alerting: boolean;
-}
-
-export interface LiveEvent {
-  type: "trace" | "gate";
-  trace_id?: string;
-  intent?: string;
-  aggregate?: number;
-  verdicts?: EvalVerdict[];
-  candidate?: string;
-  passed?: boolean;
+export interface Session {
+  token: string;
+  tenantId: string;
+  email: string;
 }
