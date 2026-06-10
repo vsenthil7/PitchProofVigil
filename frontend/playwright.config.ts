@@ -1,8 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// E2E runs the real backend (uvicorn) and the built frontend (vite preview)
-// together, then drives the dashboard in a real browser. The webServer block
-// boots both; Playwright waits for the frontend port before starting tests.
+// E2E boots the real backend (uvicorn) + built frontend (vite preview),
+// then drives the dashboard in a real browser. Cross-platform via cross-env
+// and PW_PYTHON (defaults to "python") so it runs on Windows, Linux, macOS.
+const PY = process.env.PW_PYTHON || "python";
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
@@ -16,19 +18,14 @@ export default defineConfig({
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
-  projects: [
-    {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
-    },
-  ],
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      command:
-        "cd ../backend && USE_MOCKS=true DATABASE_DSN='sqlite+aiosqlite:///./e2e_test.db' JWT_SECRET=e2e-secret python3 -m uvicorn app.api.app:app --port 8000",
+      command: `cross-env USE_MOCKS=true DATABASE_DSN=sqlite+aiosqlite:///./e2e_test.db JWT_SECRET=e2e-secret ${PY} -m uvicorn app.api.app:app --port 8000`,
+      cwd: "../backend",
       port: 8000,
       reuseExistingServer: !process.env.CI,
-      timeout: 30_000,
+      timeout: 60_000,
     },
     {
       command: "npm run build && npm run preview",
