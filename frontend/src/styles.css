@@ -850,3 +850,129 @@ body::before {
   color: var(--chalk-faint);
   background: rgba(90, 125, 111, 0.15);
 }
+
+/* ===== F9: analytics, audit, webhooks ================================== */
+
+.window-toggle {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.chip-active {
+  background: var(--signal-dim) !important;
+  color: var(--pitch-900) !important;
+  border-color: var(--signal) !important;
+}
+
+/* Trend chart */
+.trend {
+  background: var(--pitch-800);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+}
+.trend-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.trend-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--chalk-dim);
+}
+.trend-current {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+}
+.trend-svg {
+  width: 100%;
+  height: 140px;
+  display: block;
+}
+.trend-axis {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.trend-empty,
+.empty {
+  color: var(--chalk-faint);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 20px;
+  text-align: center;
+}
+
+/* Audit log */
+.audit-list {
+  display: flex;
+  flex-direction: column;
+}
+.audit-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 160px 180px;
+  gap: 12px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 12.5px;
+  align-items: center;
+}
+.audit-action {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--signal);
+}
+.audit-target {
+  color: var(--chalk);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.audit-actor {
+  color: var(--chalk-dim);
+}
+.audit-time {
+  color: var(--chalk-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: right;
+}
+
+/* Webhooks */
+.webhook-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 130px auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--pitch-800);
+  margin-bottom: 6px;
+}
+.webhook-event {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--signal);
+}
+.webhook-url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  color: var(--chalk-dim);
+}
+.webhook-status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.webhook-status.on {
+  color: var(--signal);
+}
+.webhook-status.off {
+  color: var(--chalk-faint);
+}

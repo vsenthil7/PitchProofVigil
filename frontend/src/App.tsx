@@ -7,46 +7,54 @@ import { useAuth } from "./hooks/useAuth";
 import { useStats } from "./hooks/useStats";
 import { LoginPage } from "./pages/LoginPage";
 import { PolicyEditor } from "./pages/PolicyEditor";
+import { AnalyticsPage } from "./pages/AnalyticsPage";
+import { AuditView } from "./pages/AuditView";
+import { WebhooksManager } from "./pages/WebhooksManager";
 
-type Tab = "console" | "gate" | "policies";
+type Tab = "console" | "gate" | "policies" | "analytics" | "audit" | "webhooks";
 
-// Authenticated control room. Tabs split the operator workflow: live console,
-// promotion gate, and the policy editor. The right rail always shows platform
-// health. Unauthenticated users see the login/register screen.
+const TABS: { id: Tab; label: string }[] = [
+  { id: "console", label: "Console" },
+  { id: "gate", label: "Promotion Gate" },
+  { id: "policies", label: "Policies" },
+  { id: "analytics", label: "Analytics" },
+  { id: "audit", label: "Audit" },
+  { id: "webhooks", label: "Webhooks" },
+];
+
+// Tabs split the operator workflow. The right rail (platform health) shows on
+// the operational tabs; full-width tabs (policies, analytics, audit, webhooks)
+// use the whole canvas.
 function Dashboard() {
   const { stats, refresh } = useStats();
   const [tab, setTab] = useState<Tab>("console");
+
+  const fullWidth = tab === "policies" || tab === "analytics" || tab === "audit" || tab === "webhooks";
 
   return (
     <div className="app">
       <TopBar />
 
       <div className="tabs" data-testid="tabs">
-        <button
-          className={`tab ${tab === "console" ? "active" : ""}`}
-          data-testid="tab-console"
-          onClick={() => setTab("console")}
-        >
-          Console
-        </button>
-        <button
-          className={`tab ${tab === "gate" ? "active" : ""}`}
-          data-testid="tab-gate"
-          onClick={() => setTab("gate")}
-        >
-          Promotion Gate
-        </button>
-        <button
-          className={`tab ${tab === "policies" ? "active" : ""}`}
-          data-testid="tab-policies"
-          onClick={() => setTab("policies")}
-        >
-          Policies
-        </button>
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            className={`tab ${tab === t.id ? "active" : ""}`}
+            data-testid={`tab-${t.id}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {tab === "policies" ? (
-        <PolicyEditor />
+      {fullWidth ? (
+        <>
+          {tab === "policies" && <PolicyEditor />}
+          {tab === "analytics" && <AnalyticsPage />}
+          {tab === "audit" && <AuditView />}
+          {tab === "webhooks" && <WebhooksManager />}
+        </>
       ) : (
         <div className="grid">
           <div>

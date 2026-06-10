@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import db_session, get_settings_dep, require
-from app.api.schemas_v2 import (
+from app.api.schemas import (
     APIKeyResponse,
     CreateAPIKeyRequest,
     CreateUserRequest,

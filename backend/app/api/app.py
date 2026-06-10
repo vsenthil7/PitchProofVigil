@@ -11,16 +11,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
-from app.api.routers_auth import router as auth_router
-from app.api.routers_eval import router as eval_router
-from app.api.routers_gate import (
-    admin_router,
-    dataset_router,
-    gate_router,
-    policy_router,
-)
+from app.api.routers import all_routers
 from app.core.config import Settings, get_settings
+from app.ratelimit import RateLimiter
 from app.db.engine import Database
 from app.evaluators.registry import build_default_registry
 from app.evaluators.scoring import ScoringEngine
@@ -68,6 +63,26 @@ def create_app(
     app.state.scoring_engine = ScoringEngine(registry)
     app.state.orchestrator = ConciergeOrchestrator(settings)
     app.state.metrics = Metrics()
+    app.state.rate_limiter = RateLimiter(
+        capacity=settings.rate_limit_capacity,
+        refill_per_second=settings.rate_limit_refill_per_second,
+    )
+
+    @app.middleware("http")
+    async def rate_limit(request: Request, call_next):
+        # Limit authenticated API traffic per identity (tenant via API key or
+        # bearer subject). Health/metrics and unauthenticated calls are exempt.
+        key = request.headers.get("x-api-key") or request.headers.get("authorization")
+        if key and request.url.path.startswith("/api/"):
+            limiter: RateLimiter = app.state.rate_limiter
+            if not limiter.check(key):
+                app.state.metrics.observe_rate_limited(request.url.path)
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "Rate limit exceeded. Slow down."},
+                    headers={"Retry-After": "1"},
+                )
+        return await call_next(request)
 
     @app.middleware("http")
     async def observe(request: Request, call_next):
@@ -83,12 +98,8 @@ def create_app(
         )
         return response
 
-    app.include_router(auth_router)
-    app.include_router(eval_router)
-    app.include_router(gate_router)
-    app.include_router(policy_router)
-    app.include_router(dataset_router)
-    app.include_router(admin_router)
+    for router in all_routers:
+        app.include_router(router)
     return app
 
 

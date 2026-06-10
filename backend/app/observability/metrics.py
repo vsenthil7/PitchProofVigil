@@ -63,6 +63,12 @@ class Metrics:
             "Number of active tenants observed this process.",
             registry=self.registry,
         )
+        self.rate_limited = Counter(
+            "ppv_rate_limited_total",
+            "Requests rejected by the rate limiter.",
+            ["path"],
+            registry=self.registry,
+        )
 
     def observe_http(self, method: str, path: str, status: int, duration_s: float) -> None:
         self.http_requests.labels(method=method, path=path, status=str(status)).inc()
@@ -77,6 +83,9 @@ class Metrics:
 
     def observe_gate(self, passed: bool) -> None:
         self.gate_decisions.labels(passed=str(passed).lower()).inc()
+
+    def observe_rate_limited(self, path: str) -> None:
+        self.rate_limited.labels(path=path).inc()
 
     def render(self) -> tuple[bytes, str]:
         return generate_latest(self.registry), CONTENT_TYPE_LATEST

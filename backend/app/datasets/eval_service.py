@@ -103,6 +103,7 @@ class EvaluationService:
         eval_repo: EvaluationRepository,
         alerting: AlertingService,
         metrics: Metrics,
+        bus=None,
     ) -> None:
         self.tenant_id = tenant_id
         self.orchestrator = orchestrator
@@ -111,6 +112,7 @@ class EvaluationService:
         self.eval_repo = eval_repo
         self.alerting = alerting
         self.metrics = metrics
+        self.bus = bus
 
     async def ask(self, req: ConciergeRequest, policy: GatePolicy) -> AskOutcome:
         result = self.orchestrator.run(req)
@@ -169,6 +171,29 @@ class EvaluationService:
                 body="; ".join(f"{o.evaluator}: {o.summary}" for o in blocking),
                 context={"trace_id": trace.trace_id, "intent": resp.detected_intent.value},
             )
+
+        # Publish domain events (audit, webhooks, extra metrics) if a bus is wired.
+        if self.bus is not None:
+            from app.events.types import TraceEvaluated, blocking_failure
+
+            await self.bus.publish(
+                TraceEvaluated.make(
+                    self.tenant_id,
+                    trace.trace_id,
+                    resp.detected_intent.value,
+                    report.aggregate_score,
+                    report.passed,
+                )
+            )
+            if blocking:
+                await self.bus.publish(
+                    blocking_failure(
+                        self.tenant_id,
+                        trace.trace_id,
+                        [o.evaluator for o in blocking],
+                        "; ".join(o.summary for o in blocking),
+                    )
+                )
 
         return AskOutcome(
             trace=trace,

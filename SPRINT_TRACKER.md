@@ -230,3 +230,66 @@ FINAL STATE — enterprise build complete.
 Backend: 5,100 LOC, 255 tests, 100% coverage.
 Frontend: 1,278 LOC, builds clean, 20 E2E specs.
 All six enterprise sprints (E1–E6) delivered.
+
+---
+
+## Phase F — Modularization & Depth (in progress)
+
+Goal: break kitchen-sink files into proper sub-packages, and add the
+enterprise breadth that's genuinely missing. No scope reduction.
+
+| Sprint | Module | Status |
+|---|---|---|
+| F1 | Split routers_gate -> api/routers/{gate,policies,datasets,admin,ops} package | ✅ Done |
+| F2 | Split schemas_v2 -> api/schemas/ package by domain | ✅ Done |
+| F3 | Split db/models -> db/models/ package by aggregate (12 tables) | ✅ Done |
+| F4 | Domain event bus + handlers (decouple alerting/metrics/audit) | ✅ Done |
+| F5 | Audit log (who did what, persisted, queryable, /api/audit) | ✅ Done |
+| F6 | Rate limiting (per-tenant token bucket) + pagination util | ✅ Done |
+| F7 | Webhook subscriptions (model+repo+CRUD+delivery handler) | Model/repo/CRUD done; live delivery handler pending |
+| F8 | Analytics/trends module (time-series eval metrics) | ✅ Done |
+| F9 | Frontend: audit view, webhooks manager, analytics charts | ✅ Done |
+| F10 | Alembic migration for audit_log + webhook_subscriptions | ✅ Done |
+
+### F9 notes (complete)
+- TrendChart: dependency-free SVG line chart (percent + auto-scale modes).
+- AnalyticsPage: summary tiles + pass-rate & latency trend charts, 1h/24h/7d
+  window toggle, reads /api/analytics.
+- AuditView: filterable audit trail from /api/audit.
+- WebhooksManager: create/list/remove subscriptions via /api/webhooks.
+- App now has 6 tabs (Console, Gate, Policies, Analytics, Audit, Webhooks);
+  full-width layout for the analytical/management tabs.
+- Frontend typechecks + builds clean. 29 Playwright E2E specs (was 20).
+
+### Phase F — FINAL STATE
+Backend: 62 modules, 301 tests, 100% coverage. New packages this phase:
+api/routers/, api/schemas/, db/models/, events/, ratelimit/, pagination/,
+analytics/ + audit/webhook repos and 2 new tables (migration-backed, 12 total).
+Frontend: 6-tab control room, 9 components + 5 pages, 29 E2E specs, clean build.
+No kitchen-sink files remain; every former monolith is a cohesive sub-package.
+Scope was widened (events, audit, webhooks, rate limiting, pagination,
+analytics), never reduced.
+
+### F6, F8, F10 notes (complete)
+- ratelimit/ package: TokenBucket + keyed RateLimiter (injectable clock).
+  Wired as ASGI middleware → 429 + Retry-After on authenticated /api/ traffic.
+  ppv_rate_limited_total metric. Config: RATE_LIMIT_CAPACITY / _REFILL_PER_SECOND.
+- pagination/ package: PageParams (clamped) + Page (has_more/next_offset/meta).
+- analytics/ package: AnalyticsService — pass_rate / category_score /
+  evaluator_failure / latency trends (Python time-bucketing, dialect-agnostic)
+  + summary. Exposed at /api/analytics/{summary,pass-rate,category,evaluator,latency}.
+- Alembic: second revision (5f047ee6e1f2) adds audit_log + webhook_subscriptions;
+  full chain upgrades to 12 tables and downgrades cleanly.
+- Backend now 301 tests, 100% coverage, 40+ modules.
+
+### F1–F5 notes (complete)
+- 278 tests, 100% coverage maintained throughout the refactor.
+- routers/ package: _helpers, gate, policies, datasets, admin, auth, evaluation,
+  ops (+ __init__ exporting all_routers).
+- schemas/ package: auth, evaluation, gate, policy, dataset, ops (+ re-export __init__).
+- db/models/ package: _base, identity, tracing, evaluation, governance, ops,
+  audit, webhooks (+ re-export __init__).
+- events/ package: types (DomainEvent + factories), bus (async, error-isolating),
+  handlers (Metrics, Audit). Bus wired into the live /api/ask flow.
+- Audit log + webhook subscription tables, repositories, and /api/audit +
+  /api/webhooks endpoints (RBAC-gated).

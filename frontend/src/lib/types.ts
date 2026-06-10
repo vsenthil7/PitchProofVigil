@@ -127,3 +127,34 @@ export interface Session {
   tenantId: string;
   email: string;
 }
+
+// ---- Ops & analytics (F9) ----
+
+export interface AuditEntry {
+  id: string;
+  actor: string;
+  action: string;
+  target: string;
+  detail: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface Webhook {
+  id: string;
+  url: string;
+  event_type: string;
+  active: boolean;
+  last_status: number | null;
+}
+
+export interface TrendPoint {
+  bucket: string;
+  value: number;
+  count: number;
+}
+
+export interface AnalyticsSummary {
+  window_hours: number;
+  evaluations: number;
+  pass_rate: number;
+}

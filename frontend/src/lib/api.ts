@@ -2,7 +2,9 @@
 // and exposes the full surface: auth, ask, gate, policies, datasets, stats.
 
 import type {
+  AnalyticsSummary,
   AskResponse,
+  AuditEntry,
   EvaluatorSpec,
   GateDecisionSummary,
   GateResponse,
@@ -12,6 +14,8 @@ import type {
   Stats,
   TokenResponse,
   TraceSummary,
+  TrendPoint,
+  Webhook,
 } from "./types";
 
 let _token: string | null = null;
@@ -143,5 +147,60 @@ export const api = {
   // ---- Health ----
   async ready(): Promise<{ ready: boolean }> {
     return jsonOrThrow(await fetch("/ready"));
+  },
+
+  // ---- Audit ----
+  async listAudit(action?: string, limit = 100): Promise<AuditEntry[]> {
+    const q = new URLSearchParams({ limit: String(limit) });
+    if (action) q.set("action", action);
+    return jsonOrThrow(await fetch(`/api/audit?${q}`, { headers: authHeaders() }));
+  },
+
+  // ---- Webhooks ----
+  async listWebhooks(): Promise<Webhook[]> {
+    return jsonOrThrow(await fetch("/api/webhooks", { headers: authHeaders() }));
+  },
+
+  async createWebhook(url: string, eventType: string, secret = ""): Promise<Webhook> {
+    return jsonOrThrow(
+      await fetch("/api/webhooks", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ url, event_type: eventType, secret }),
+      }),
+    );
+  },
+
+  async deleteWebhook(id: string): Promise<{ deactivated: string }> {
+    return jsonOrThrow(
+      await fetch(`/api/webhooks/${id}`, { method: "DELETE", headers: authHeaders() }),
+    );
+  },
+
+  // ---- Analytics ----
+  async analyticsSummary(windowHours = 24): Promise<AnalyticsSummary> {
+    return jsonOrThrow(
+      await fetch(`/api/analytics/summary?window_hours=${windowHours}`, {
+        headers: authHeaders(),
+      }),
+    );
+  },
+
+  async passRateTrend(windowHours = 24, bucketMinutes = 60): Promise<TrendPoint[]> {
+    return jsonOrThrow(
+      await fetch(
+        `/api/analytics/pass-rate?window_hours=${windowHours}&bucket_minutes=${bucketMinutes}`,
+        { headers: authHeaders() },
+      ),
+    );
+  },
+
+  async latencyTrend(windowHours = 24, bucketMinutes = 60): Promise<TrendPoint[]> {
+    return jsonOrThrow(
+      await fetch(
+        `/api/analytics/latency?window_hours=${windowHours}&bucket_minutes=${bucketMinutes}`,
+        { headers: authHeaders() },
+      ),
+    );
   },
 };

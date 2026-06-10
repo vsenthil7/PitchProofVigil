@@ -86,6 +86,12 @@ class Settings:
     api_key_prefix: str = field(
         default_factory=lambda: os.getenv("API_KEY_PREFIX", "ppv")
     )
+    rate_limit_capacity: float = field(
+        default_factory=lambda: float(os.getenv("RATE_LIMIT_CAPACITY", "120"))
+    )
+    rate_limit_refill_per_second: float = field(
+        default_factory=lambda: float(os.getenv("RATE_LIMIT_REFILL_PER_SECOND", "10"))
+    )
 
     @property
     def gemini_available(self) -> bool:

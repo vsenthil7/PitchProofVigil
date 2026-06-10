@@ -12,7 +12,7 @@ from app.api.deps import (
     get_scoring_engine,
     require,
 )
-from app.api.schemas_v2 import AskRequest, AskResponse, EvalOut, FindingOut
+from app.api.schemas import AskRequest, AskResponse, EvalOut, FindingOut
 from app.alerting.service import AlertingService
 from app.auth.service import Permission, Principal
 from app.core.models import ConciergeRequest
@@ -35,6 +35,14 @@ async def ask(
 ) -> AskResponse:
     orchestrator = get_orchestrator(request)
     metrics = get_metrics_dep(request)
+    # Wire a per-request event bus: audit handler persists, metrics handler
+    # records gate movements. Decouples side-effects from the core workflow.
+    from app.events.bus import EventBus
+    from app.events.handlers import AuditHandler
+    from app.repositories.audit import AuditRepository
+
+    bus = EventBus()
+    bus.subscribe_all(AuditHandler(AuditRepository(session, principal.tenant_id)))
     service = EvaluationService(
         tenant_id=principal.tenant_id,
         orchestrator=orchestrator,
@@ -43,6 +51,7 @@ async def ask(
         eval_repo=EvaluationRepository(session, principal.tenant_id),
         alerting=AlertingService(AlertRepository(session, principal.tenant_id)),
         metrics=metrics,
+        bus=bus,
     )
     outcome = await service.ask(
         ConciergeRequest(text=body.text, language=body.language), policy
