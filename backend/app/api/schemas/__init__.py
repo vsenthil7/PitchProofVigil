@@ -6,6 +6,8 @@ callers can import any of them from ``app.api.schemas`` directly.
 from app.api.schemas.auth import (
     APIKeyResponse,
     MeResponse,
+    GrantMembershipRequest,
+    SwitchTenantRequest,
     TenantSummary,
     CreateAPIKeyRequest,
     CreateUserRequest,
@@ -32,6 +34,8 @@ from app.api.schemas.policy import (
 __all__ = [
     "APIKeyResponse",
     "MeResponse",
+    "GrantMembershipRequest",
+    "SwitchTenantRequest",
     "TenantSummary",
     "CreateAPIKeyRequest",
     "CreateUserRequest",

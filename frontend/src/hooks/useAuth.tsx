@@ -19,7 +19,7 @@ interface AuthState {
     password: string,
   ) => Promise<string>;
   logout: () => void;
-  switchTenant: (tenantId: string) => void;
+  switchTenant: (tenantId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -62,13 +62,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   }, []);
 
-  const switchTenant = useCallback((tenantId: string) => {
-    // Owners can view multiple tenants; switching updates the active scope.
-    setSession((s) =>
-      s && s.tenants.some((t) => t.id === tenantId)
-        ? { ...s, tenantId, tenantName: s.tenants.find((t) => t.id === tenantId)!.name }
-        : s,
-    );
+  const switchTenant = useCallback(async (tenantId: string) => {
+    // Re-scope the session by minting a tenant-scoped token on the backend,
+    // then refreshing identity (role can differ per tenant for non-owners).
+    const { access_token } = await api.switchTenant(tenantId);
+    setToken(access_token);
+    const me = await api.me();
+    setSession({
+      token: access_token,
+      tenantId: me.tenant_id,
+      email: me.email ?? "",
+      role: me.role,
+      tenantName: me.tenant_name,
+      tenants: me.tenants,
+    });
   }, []);
 
   const value = useMemo(

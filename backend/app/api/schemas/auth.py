@@ -54,6 +54,16 @@ class TenantSummary(BaseModel):
     slug: str
 
 
+class SwitchTenantRequest(BaseModel):
+    tenant_id: str
+
+
+class GrantMembershipRequest(BaseModel):
+    user_id: str
+    tenant_id: str
+    role: Role
+
+
 class MeResponse(BaseModel):
     """The authenticated caller's identity, for the UI to render role/tenant."""
     subject: str

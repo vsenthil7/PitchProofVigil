@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 
 // Top command bar: product mark, a tenant switcher (owners span multiple
@@ -11,6 +12,22 @@ const ROLE_LABEL: Record<string, string> = {
 
 export function TopBar() {
   const { session, logout, switchTenant } = useAuth();
+  const [switching, setSwitching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onSwitch = async (tenantId: string) => {
+    if (!session || tenantId === session.tenantId) return;
+    setSwitching(true);
+    setError(null);
+    try {
+      await switchTenant(tenantId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "switch failed");
+    } finally {
+      setSwitching(false);
+    }
+  };
+
   return (
     <header className="topbar">
       <div className="brand">
@@ -29,8 +46,8 @@ export function TopBar() {
             <select
               data-testid="tenant-switcher"
               value={session.tenantId}
-              disabled={session.tenants.length <= 1}
-              onChange={(e) => switchTenant(e.target.value)}
+              disabled={session.tenants.length <= 1 || switching}
+              onChange={(e) => onSwitch(e.target.value)}
             >
               {session.tenants.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -39,6 +56,12 @@ export function TopBar() {
               ))}
             </select>
           </label>
+
+          {error && (
+            <span className="switch-error" data-testid="switch-error" role="alert">
+              {error}
+            </span>
+          )}
 
           <span className={`role-badge role-${session.role}`} data-testid="role-badge">
             {ROLE_LABEL[session.role] ?? session.role}

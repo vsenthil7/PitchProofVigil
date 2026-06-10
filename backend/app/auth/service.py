@@ -23,6 +23,7 @@ from app.auth.security import (
 from app.core.config import Settings, get_settings
 from app.db.models import APIKey, Role, User
 from app.repositories.registry import (
+    MembershipRepository,
     APIKeyRepository,
     TenantRepository,
     UserRepository,
@@ -102,6 +103,7 @@ class AuthService:
         self.tenants = TenantRepository(session)
         self.users = UserRepository(session)
         self.api_keys = APIKeyRepository(session)
+        self.memberships = MembershipRepository(session)
 
     async def register_tenant(
         self, tenant_name: str, slug: str, owner_email: str, owner_password: str
@@ -144,6 +146,42 @@ class AuthService:
         return create_access_token(
             user.id, user.tenant_id, user.role.value, self.settings
         )
+
+    async def switch_tenant(self, principal: "Principal", target_tenant_id: str) -> str:
+        """Mint a new access token scoped to ``target_tenant_id``.
+
+        Authorization rules:
+          - The caller must be a *user* (API keys are tenant-bound by design).
+          - Switching to your home tenant is always allowed.
+          - Owners may switch to any existing tenant (platform operators).
+          - Anyone else must hold an explicit TenantMembership in the target,
+            and they assume the role recorded on that membership.
+        The target tenant must exist and be active. Returns a fresh JWT.
+        """
+        if principal.kind != "user":
+            raise AuthError("API keys cannot switch tenants.")
+
+        target = await self.tenants.get(target_tenant_id)
+        if target is None or not target.is_active:
+            raise AuthError("Tenant not found.")
+
+        user = await self.users.get(principal.subject)
+        if user is None or not user.is_active:
+            raise AuthError("User not found.")
+
+        # Determine the role the user holds in the target tenant.
+        if target_tenant_id == user.tenant_id:
+            role_value = user.role.value
+        elif user.role == Role.OWNER:
+            # Platform owner keeps owner authority across tenants.
+            role_value = Role.OWNER.value
+        else:
+            membership = await self.memberships.get(user.id, target_tenant_id)
+            if membership is None:
+                raise AuthError("No access to that tenant.")
+            role_value = membership.role.value
+
+        return create_access_token(user.id, target_tenant_id, role_value, self.settings)
 
     async def create_api_key(
         self, tenant_id: str, name: str, role: Role

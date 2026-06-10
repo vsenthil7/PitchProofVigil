@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import APIKey, Tenant, User
+from app.db.models import APIKey, Role, Tenant, TenantMembership, User
 
 
 def _now() -> datetime:
@@ -79,5 +79,39 @@ class APIKeyRepository:
             return False
         key.revoked = True
         self.session.add(key)
+        await self.session.flush()
+        return True
+
+
+class MembershipRepository:
+    """Cross-tenant memberships: which tenants a user can operate in, and the
+    role they hold in each. Used to authorize tenant switching and to build the
+    effective tenant list in /me."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def add(self, user_id: str, tenant_id: str, role: Role) -> TenantMembership:
+        m = TenantMembership(user_id=user_id, tenant_id=tenant_id, role=role)
+        self.session.add(m)
+        await self.session.flush()
+        return m
+
+    async def for_user(self, user_id: str) -> list[TenantMembership]:
+        stmt = select(TenantMembership).where(TenantMembership.user_id == user_id)
+        return list((await self.session.execute(stmt)).scalars().all())
+
+    async def get(self, user_id: str, tenant_id: str) -> TenantMembership | None:
+        stmt = select(TenantMembership).where(
+            TenantMembership.user_id == user_id,
+            TenantMembership.tenant_id == tenant_id,
+        )
+        return (await self.session.execute(stmt)).scalars().first()
+
+    async def remove(self, user_id: str, tenant_id: str) -> bool:
+        m = await self.get(user_id, tenant_id)
+        if m is None:
+            return False
+        await self.session.delete(m)
         await self.session.flush()
         return True

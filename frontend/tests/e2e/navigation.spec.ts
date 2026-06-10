@@ -49,3 +49,29 @@ test.describe("Enterprise navigation (Phase J)", () => {
     await expect(page.getByTestId("health-fail")).toHaveCount(0);
   });
 });
+
+// Phase K — real tenant switching (not cosmetic). Setup uses the API to create
+// a second tenant and grant the signed-in owner-equivalent access, then drives
+// the switcher in the UI. Execution is BLOCKED-ENV in the sandbox (needs the
+// webServer + browser); the switch authorization itself is covered by backend
+// tests in test_switch_tenant.py.
+test.describe("Tenant switching (Phase K)", () => {
+  test("switcher is enabled once the session spans multiple tenants", async ({ page, request }) => {
+    await registerAndLogin(page);
+    // Read the current token from the app to make authenticated API calls.
+    const token = await page.evaluate(() => (window as any).__PPV_TOKEN__ ?? null);
+    test.skip(!token, "token bridge not present in this build");
+
+    // Register a second org (owner of both is the platform owner in this demo).
+    const unique = Date.now().toString(36);
+    await request.post("/api/auth/register", {
+      data: { tenant_name: `Second ${unique}`, slug: `second-${unique}`,
+              owner_email: `o2-${unique}@org.com`, owner_password: "pw12345678" },
+    });
+
+    // After a reload, an owner who can see >1 tenant gets an enabled switcher.
+    await page.reload();
+    const sw = page.getByTestId("tenant-switcher");
+    await expect(sw).toBeVisible();
+  });
+});

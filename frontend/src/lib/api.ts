@@ -105,6 +105,16 @@ export const api = {
     return jsonOrThrow(await fetch("/api/auth/tenants", { headers: authHeaders() }));
   },
 
+  async switchTenant(tenantId: string): Promise<TokenResponse> {
+    return jsonOrThrow(
+      await fetch("/api/auth/switch-tenant", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ tenant_id: tenantId }),
+      }),
+    );
+  },
+
   async health(): Promise<{ status: string }> {
     return jsonOrThrow(await fetch("/health"));
   },

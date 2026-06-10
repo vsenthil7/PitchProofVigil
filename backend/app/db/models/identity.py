@@ -45,3 +45,26 @@ class APIKey(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
     last_used_at: datetime | None = Field(default=None)
     revoked: bool = Field(default=False)
+
+
+class TenantMembership(SQLModel, table=True):
+    """A user's access to a tenant other than (or including) their home tenant.
+
+    The ``users`` row still carries a user's *home* tenant and role — that's
+    unchanged. Memberships are additive: they let one identity operate across
+    tenants (e.g. a platform owner, or a consultant with access to two orgs),
+    each with its own role in that tenant. A user's effective set of tenants is
+    their home tenant ∪ their memberships. The pair (user_id, tenant_id) is
+    unique so a user has at most one role per tenant.
+    """
+
+    __tablename__ = "tenant_memberships"
+    __table_args__ = (
+        UniqueConstraint("user_id", "tenant_id", name="uq_membership_user_tenant"),
+    )
+
+    id: str = Field(default_factory=uuid_str, primary_key=True)
+    user_id: str = Field(foreign_key="users.id", index=True)
+    tenant_id: str = Field(foreign_key="tenants.id", index=True)
+    role: Role = Field(sa_column=Column(SAEnum(Role)))
+    created_at: datetime = Field(default_factory=utcnow)

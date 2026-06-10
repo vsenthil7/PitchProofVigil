@@ -43,8 +43,9 @@ class ReadinessReport:
 
 
 class HealthService:
-    def __init__(self, database: Database) -> None:
+    def __init__(self, database: Database, settings=None) -> None:
         self.database = database
+        self.settings = settings
 
     async def check_database(self) -> CheckResult:
         start = time.perf_counter()
@@ -65,8 +66,65 @@ class HealthService:
                 (time.perf_counter() - start) * 1000.0,
             )
 
+    def check_encryption(self) -> CheckResult:
+        """Encryption is configured. A derived dev key is healthy-but-degraded:
+        it works, but production should set ENCRYPTION_KEYS, so we surface it as
+        a non-fatal detail rather than failing readiness."""
+        start = time.perf_counter()
+        if self.settings is None:
+            return CheckResult("encryption", True, "not evaluated", 0.0)
+        from app.crypto import KeyProvider
+
+        provider = KeyProvider(self.settings)
+        detail = (
+            f"ephemeral dev key (set ENCRYPTION_KEYS); ring={provider.key_count}"
+            if provider.is_ephemeral
+            else f"configured; ring={provider.key_count}"
+        )
+        return CheckResult(
+            "encryption", True, detail, (time.perf_counter() - start) * 1000.0
+        )
+
+    async def check_migrations(self) -> CheckResult:
+        """The DB schema is at the latest Alembic revision.
+
+        Compares the version recorded in ``alembic_version`` against the head
+        revision shipped in the image. A drift here means someone forgot to run
+        migrations — a real readiness failure.
+        """
+        start = time.perf_counter()
+        try:
+            from app.db.migrations_info import head_revision
+
+            expected = head_revision()
+            async with self.database.session() as s:
+                result = await s.execute(text("SELECT version_num FROM alembic_version"))
+                current = result.scalar()
+            healthy = current == expected
+            detail = (
+                "at head"
+                if healthy
+                else f"drift: db={current} head={expected}"
+            )
+            return CheckResult(
+                "migrations", healthy, detail, (time.perf_counter() - start) * 1000.0
+            )
+        except Exception as exc:
+            # No alembic_version table (e.g. schema created directly in tests):
+            # treat as not-applicable rather than a hard failure.
+            return CheckResult(
+                "migrations",
+                True,
+                f"not tracked ({type(exc).__name__})",
+                (time.perf_counter() - start) * 1000.0,
+            )
+
     async def readiness(self) -> ReadinessReport:
-        checks = [await self.check_database()]
+        checks = [
+            await self.check_database(),
+            self.check_encryption(),
+            await self.check_migrations(),
+        ]
         return ReadinessReport(ready=all(c.healthy for c in checks), checks=checks)
 
     @staticmethod

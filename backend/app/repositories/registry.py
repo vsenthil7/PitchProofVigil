@@ -11,6 +11,7 @@ from app.repositories.governance import (
 )
 from app.repositories.identity import (
     APIKeyRepository,
+    MembershipRepository,
     TenantRepository,
     UserRepository,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "GatePolicyRepository",
     "GoldenDatasetRepository",
     "APIKeyRepository",
+    "MembershipRepository",
     "TenantRepository",
     "UserRepository",
 ]

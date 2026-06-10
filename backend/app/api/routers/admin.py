@@ -16,7 +16,7 @@ async def health() -> dict:
 
 @router.get("/ready")
 async def ready(request: Request) -> dict:
-    hs = HealthService(get_db(request))
+    hs = HealthService(get_db(request), settings=request.app.state.settings)
     report = await hs.readiness()
     return report.as_dict()
 

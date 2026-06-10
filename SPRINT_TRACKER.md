@@ -446,3 +446,46 @@ collapsible navigation, and a live platform-health self-check.
 Reference: patterns adapted from the SpoofVane console (grouped collapsible nav,
 role/tenant chrome, live health self-check), applied natively to PitchProof's
 tab-based control room and real RBAC/tenant model.
+
+---
+
+## Phase K — Review hardening (reviewer-hat findings)
+
+A real review of Phase J surfaces gaps where things *look* wired but aren't.
+Fixing them, plus the depth a reviewer expects. No scope reduction.
+
+| Sprint | Finding → Fix | Status |
+|---|---|---|
+| K1 | Tenant switcher was COSMETIC → backend `POST /api/auth/switch-tenant` mints a tenant-scoped token (owner-only, membership-checked) | ✅ Done |
+| K2 | Frontend switchTenant only relabelled → call switch endpoint, swap token, reload scoped data | ✅ Done |
+| K3 | Owner cross-tenant access needs a membership model → TenantMembership table + repository (multi-tenant users, not one-row-one-role) | ✅ Done |
+| K4 | `/me` tenants list not backed by real membership → derive from memberships; owners still see all | ✅ Done |
+| K5 | Readiness only checked DB → add encryption-key + migration-head checks (modular HealthCheck registry) | ✅ Done |
+| K6 | Frontend: surface switch errors + active-tenant confirmation; health page shows new checks | ✅ Done |
+| K7 | Tests: switch-tenant (allow/deny/cross-tenant), membership repo, readiness checks, e2e | ✅ Done |
+
+
+### Phase K — FINAL STATE
+- **TenantMembership** table + migration (4th revision; chain up/down clean,
+  14 tables) + **MembershipRepository** (add/get/for_user/remove).
+- **POST /api/auth/switch-tenant** — real re-scoping: mints a token bound to the
+  target tenant. Authorization: API keys can't switch; owners → any tenant;
+  others → must hold a membership, and assume that membership's role.
+- **POST /api/auth/memberships** — owner/admin grants cross-tenant access
+  (MANAGE_USERS; idempotent on user+tenant, updates role on re-grant). This was
+  the missing backing store that made /me's tenant list real for non-owners.
+- **/me** and **/tenants** now derive the visible-tenant set from
+  home ∪ memberships (owners still see all).
+- **Readiness** is modular: database + **encryption** (flags ephemeral dev key)
+  + **migrations** (compares DB alembic_version to the shipped head via
+  `app/db/migrations_info.py`). Surfaced on `/ready`.
+- **Frontend**: `switchTenant` now calls the endpoint, swaps the token, and
+  reloads identity (role can change per tenant); TopBar shows a pending/disabled
+  state and surfaces switch errors.
+- **Tests**: 16 new backend tests (switch allow/deny/cross-tenant/api-key,
+  membership repo + endpoint 404/idempotent/RBAC, readiness incl. a real
+  migrated-DB run, migration-head fallback). Backend **384 / 100%**. Frontend
+  builds clean; nav logic re-verified; 36 e2e specs parse (1 new Phase K spec).
+
+The Phase J "cosmetic switcher" finding is closed — switching now re-scopes the
+session against real backend authorization, not a relabel.
