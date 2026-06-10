@@ -17,6 +17,24 @@ from app.repositories.registry import AlertRepository
 
 _log = get_logger("alerting")
 
+# Map internal severities onto PagerDuty Events API v2 severities.
+_SEVERITY_MAP = {
+    "critical": "critical",
+    "high": "error",
+    "medium": "warning",
+    "low": "info",
+    "info": "info",
+}
+
+# Slack attachment colours per severity.
+_SLACK_COLOURS = {
+    "critical": "#FF0000",
+    "high": "#FF6600",
+    "medium": "#FFCC00",
+    "low": "#36A64F",
+    "info": "#439FE0",
+}
+
 
 class Channel(abc.ABC):
     channel: AlertChannel
@@ -63,6 +81,100 @@ class WebhookChannel(Channel):
                 if self._client is None:
                     await client.aclose()
         except Exception:  # pragma: no cover - network failure path
+            return False
+
+
+class PagerDutyChannel(Channel):
+    """Posts a PagerDuty Events API v2 trigger event."""
+
+    channel = AlertChannel.PAGERDUTY
+    _PD_URL = "https://events.pagerduty.com/v2/enqueue"
+
+    def __init__(
+        self, routing_key: str, client: httpx.AsyncClient | None = None
+    ) -> None:
+        self.routing_key = routing_key
+        self._client = client
+
+    async def send(self, alert: AlertRow) -> bool:
+        payload = {
+            "routing_key": self.routing_key,
+            "event_action": "trigger",
+            "payload": {
+                "summary": f"[{alert.severity.upper()}] {alert.title}",
+                "severity": _SEVERITY_MAP.get(alert.severity, "warning"),
+                "source": "pitchproof-vigil",
+                "custom_details": alert.context,
+                "timestamp": alert.created_at.isoformat(),
+            },
+            "dedup_key": alert.id,
+        }
+        try:
+            client = self._client or httpx.AsyncClient(timeout=5.0)
+            try:
+                resp = await client.post(self._PD_URL, json=payload)
+                return 200 <= resp.status_code < 300
+            finally:
+                if self._client is None:
+                    await client.aclose()
+        except Exception:
+            return False
+
+
+class SlackChannel(Channel):
+    """Posts a Slack Block Kit message to an incoming webhook URL."""
+
+    channel = AlertChannel.SLACK
+
+    def __init__(
+        self, webhook_url: str, client: httpx.AsyncClient | None = None
+    ) -> None:
+        self.webhook_url = webhook_url
+        self._client = client
+
+    async def send(self, alert: AlertRow) -> bool:
+        colour = _SLACK_COLOURS.get(alert.severity, "#cccccc")
+        payload = {
+            "attachments": [
+                {
+                    "color": colour,
+                    "blocks": [
+                        {
+                            "type": "header",
+                            "text": {
+                                "type": "plain_text",
+                                "text": f":bell: [{alert.severity.upper()}] {alert.title}",
+                            },
+                        },
+                        {
+                            "type": "section",
+                            "text": {"type": "mrkdwn", "text": alert.body},
+                        },
+                        {
+                            "type": "context",
+                            "elements": [
+                                {
+                                    "type": "mrkdwn",
+                                    "text": (
+                                        f"*Tenant:* {alert.tenant_id} | "
+                                        f"*ID:* {alert.id}"
+                                    ),
+                                }
+                            ],
+                        },
+                    ],
+                }
+            ]
+        }
+        try:
+            client = self._client or httpx.AsyncClient(timeout=5.0)
+            try:
+                resp = await client.post(self.webhook_url, json=payload)
+                return 200 <= resp.status_code < 300
+            finally:
+                if self._client is None:
+                    await client.aclose()
+        except Exception:
             return False
 
 

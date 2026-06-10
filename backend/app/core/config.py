@@ -38,6 +38,12 @@ class Settings:
     gemini_model: str = field(
         default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
     )
+    judge_models: str = field(
+        default_factory=lambda: os.getenv("JUDGE_MODELS", "gemini-2.0-flash")
+    )
+    judge_aggregation: str = field(
+        default_factory=lambda: os.getenv("JUDGE_AGGREGATION", "mean")
+    )
     agent_builder_app_id: str | None = field(
         default_factory=lambda: os.getenv("AGENT_BUILDER_APP_ID")
     )
@@ -101,6 +107,60 @@ class Settings:
     webhook_resolve_dns: bool = field(
         default_factory=lambda: os.getenv("WEBHOOK_RESOLVE_DNS", "true").lower() == "true"
     )
+
+    # CORS origins (comma-separated). Default to localhost for dev.
+    # In production set CORS_ORIGINS=https://app.example.com
+    cors_origins: list[str] = field(
+        default_factory=lambda: [
+            o.strip()
+            for o in os.getenv("CORS_ORIGINS", "http://localhost:8080").split(",")
+            if o.strip()
+        ]
+    )
+
+    # Redis URL for distributed rate limiting.
+    # When absent, falls back to in-process token bucket (mock/dev safe).
+    redis_url: str | None = field(default_factory=lambda: os.getenv("REDIS_URL"))
+
+    # Alerting sinks
+    pagerduty_routing_key: str | None = field(
+        default_factory=lambda: os.getenv("PAGERDUTY_ROUTING_KEY")
+    )
+    slack_webhook_url: str | None = field(
+        default_factory=lambda: os.getenv("SLACK_WEBHOOK_URL")
+    )
+
+    # SSO / SAML (per-tenant stored in DB; these are global defaults)
+    saml_sp_entity_id: str = field(
+        default_factory=lambda: os.getenv(
+            "SAML_SP_ENTITY_ID", "https://pitchproof.example.com/sso/metadata"
+        )
+    )
+    saml_acs_url: str = field(
+        default_factory=lambda: os.getenv(
+            "SAML_ACS_URL",
+            "https://pitchproof.example.com/api/auth/sso/{tenant_slug}/acs",
+        )
+    )
+
+    def __post_init__(self) -> None:
+        # JWT_SECRET guard - refuse to start in production with a default sentinel.
+        _INSECURE_SECRETS = {
+            "dev-insecure-secret-change-me",
+            "change-me-in-production",
+            "ci-secret",
+        }
+        if not self.use_mocks and self.jwt_secret in _INSECURE_SECRETS:
+            raise ValueError(
+                "JWT_SECRET must be set to a strong random value in production. "
+                'Generate: python -c "import secrets; print(secrets.token_hex(32))"'
+            )
+        # CORS guard - wildcard is forbidden in non-mock/non-dev mode.
+        if not self.use_mocks and self.cors_origins == ["*"]:
+            raise ValueError(
+                "CORS_ORIGINS='*' is not allowed in production (USE_MOCKS=false). "
+                "Set CORS_ORIGINS=https://your-frontend-domain.com"
+            )
 
     @property
     def gemini_available(self) -> bool:

@@ -17,7 +17,7 @@ def _orch():
 
 def test_build_tool_registry():
     reg = build_tool_registry()
-    assert len(reg) == 5
+    assert len(reg) == 6
 
 
 def test_kickoff_uses_authoritative_time():
@@ -47,11 +47,14 @@ def test_travel():
     assert "transit" in r.response.text
 
 
-def test_general_no_plan():
+def test_general_now_served_by_grounded_search():
+    """GENERAL intent now routes to grounded_search (P6.M5), not an empty plan."""
     r = _orch().run(ConciergeRequest(text="hello there"))
     assert r.response.detected_intent == IntentType.GENERAL
-    assert r.plan == []
-    assert "don't have" in r.response.text.lower()
+    assert r.plan == ["grounded_search"]
+    # The reply is now composed from grounded search results, not the fallback.
+    assert "tournament data" in r.response.text.lower()
+    assert r.response.grounded_facts.get("source") == "mock"
 
 
 def test_cost_recorded():
@@ -116,7 +119,26 @@ def test_stadium_nav_uses_fixture():
 
 
 def test_real_mode_model_label(monkeypatch):
-    orch = ConciergeOrchestrator(Settings(use_mocks=False, google_cloud_project="p"))
+    orch = ConciergeOrchestrator(Settings(use_mocks=False, jwt_secret="a"*64, google_cloud_project="p"))
     assert orch.mode == "real"
     r = orch.run(ConciergeRequest(text="I want to buy a ticket"))
     assert r.response.model == "gemini-2.0-flash"
+
+
+def test_general_grounded_result_without_venue(monkeypatch):
+    """A grounded_search result lacking 'venue' uses the generic reply branch."""
+    from app.orchestration.tools import ToolResult
+
+    o = _orch()
+    grounded_tool = o.registry.get("grounded_search")
+
+    def fake_execute(query):
+        return ToolResult.success(
+            "grounded_search", results=[{"note": "no venue here"}], source="mock",
+            query=query,
+        )
+
+    monkeypatch.setattr(grounded_tool, "_execute", fake_execute)
+    r = o.run(ConciergeRequest(text="something general"))
+    assert r.response.detected_intent == IntentType.GENERAL
+    assert "most relevant tournament information" in r.response.text.lower()

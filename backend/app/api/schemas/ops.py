@@ -37,3 +37,12 @@ class AnalyticsSummaryOut(BaseModel):
     window_hours: int
     evaluations: int
     pass_rate: float
+
+
+class DriftPointOut(BaseModel):
+    bucket: str
+    mean_score: float
+    p10: float
+    p90: float
+    pass_rate: float
+    count: int

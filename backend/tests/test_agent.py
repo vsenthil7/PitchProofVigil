@@ -99,7 +99,7 @@ def test_gemini_concierge_real_path(monkeypatch):
     monkeypatch.setitem(sys.modules, "google", fake_google)
     monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
 
-    settings = Settings(use_mocks=False, google_cloud_project="p")
+    settings = Settings(use_mocks=False, jwt_secret="a"*64, google_cloud_project="p")
     agent = ConciergeAgent(settings)
     assert agent.mode == "real"
     assert isinstance(agent._impl, _GeminiConcierge)
@@ -127,7 +127,7 @@ def test_gemini_build_prompt_no_match(monkeypatch):
     monkeypatch.setitem(sys.modules, "google", fake_google)
     monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
 
-    settings = Settings(use_mocks=False, google_cloud_project="p")
+    settings = Settings(use_mocks=False, jwt_secret="a"*64, google_cloud_project="p")
     impl = _GeminiConcierge(settings)
     prompt = impl._build_prompt(ConciergeRequest(text="hello"), None)
     assert "No fixture matched" in prompt

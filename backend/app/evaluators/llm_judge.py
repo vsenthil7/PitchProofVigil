@@ -88,9 +88,13 @@ class LLMJudgeEvaluator(Evaluator):
         score = max(1.0, min(5.0, score))
         return score, ", ".join(reasons) or "baseline"
 
-    def _llm_score(self, ctx: EvalContext) -> tuple[float, str]:  # pragma: no cover
-        """Real Gemini judge. Covered via injected fake SDK in tests."""
-        from google import genai
+    def _llm_score(self, ctx: EvalContext) -> tuple[float, str]:
+        """Real Gemini judge. Retries once on JSON parse failure.
+
+        Exercised in tests via an injected fake ``google.genai`` SDK; the only
+        un-coverable part in-sandbox is the real Vertex client construction.
+        """
+        from google import genai  # type: ignore
 
         client = genai.Client(
             vertexai=True,
@@ -99,14 +103,37 @@ class LLMJudgeEvaluator(Evaluator):
         )
         resp = ctx.trace.response
         assert resp is not None
-        prompt = (
-            f"{_RUBRIC}\nQuestion: {ctx.trace.request.text}\nAnswer: {resp.text}"
-        )
+        prompt = f"{_RUBRIC}\nQuestion: {ctx.trace.request.text}\nAnswer: {resp.text}"
+
+        generate_config = {"max_output_tokens": 256, "temperature": 0.0}
+
         result = client.models.generate_content(
-            model=self.settings.gemini_model, contents=prompt
+            model=self.settings.gemini_model,
+            contents=prompt,
+            config=generate_config,
         )
-        raw = result.text.strip().removeprefix("```json").removeprefix("```").removesuffix("```")
-        data = json.loads(raw)
+        raw = (
+            result.text.strip()
+            .removeprefix("```json")
+            .removeprefix("```")
+            .removesuffix("```")
+            .strip()
+        )
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            # One retry with an explicit JSON-only instruction.
+            retry_prompt = (
+                prompt + "\nRespond with ONLY valid JSON, no prose, no code fences."
+            )
+            retry_result = client.models.generate_content(
+                model=self.settings.gemini_model,
+                contents=retry_prompt,
+                config=generate_config,
+            )
+            retry_raw = retry_result.text.strip()
+            data = json.loads(retry_raw)
+
         return float(data["score"]), str(data.get("reason", ""))
 
     def _run(self, ctx: EvalContext) -> EvaluationOutcome:

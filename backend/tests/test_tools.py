@@ -123,3 +123,83 @@ def test_translation_tool():
 def test_ticketing_tool():
     ok = TicketingTool().invoke()
     assert ok.ok and "FIFA" in ok.data["guidance"]
+
+
+# ---- P6.M5: GroundedSearchTool ----
+
+def test_grounded_search_mock_mode_returns_results():
+    from app.core.config import Settings
+    from app.orchestration.grounded_search_tool import GroundedSearchTool
+
+    tool = GroundedSearchTool(settings=Settings(use_mocks=True))
+    result = tool.invoke(query="When does Spain play?")
+    assert result.ok is True
+    assert result.data["source"] == "mock"
+    assert len(result.data["results"]) > 0
+
+
+def test_grounded_search_mock_generic_query_returns_default_subset():
+    """A query matching no team/keyword falls back to the first 2 fixtures."""
+    from app.core.config import Settings
+    from app.orchestration.grounded_search_tool import GroundedSearchTool
+
+    tool = GroundedSearchTool(settings=Settings(use_mocks=True))
+    result = tool.invoke(query="zzz nothing matches")
+    assert result.ok is True
+    assert len(result.data["results"]) == 2
+
+
+def test_grounded_search_real_mode_no_app_id_falls_back_to_mock():
+    from app.core.config import Settings
+    from app.orchestration.grounded_search_tool import GroundedSearchTool
+
+    s = Settings(use_mocks=False, jwt_secret="a" * 64)
+    # No AGENT_BUILDER_APP_ID -> mock path even in real mode.
+    tool = GroundedSearchTool(settings=s)
+    result = tool.invoke(query="stadium info")
+    assert result.ok is True
+    assert result.data["source"] == "mock"
+
+
+def test_grounded_search_keyword_query_matches_venue():
+    from app.core.config import Settings
+    from app.orchestration.grounded_search_tool import GroundedSearchTool
+
+    tool = GroundedSearchTool(settings=Settings(use_mocks=True))
+    result = tool.invoke(query="which stadium and gate")
+    assert result.ok is True
+    assert len(result.data["results"]) >= 1
+
+
+def test_grounded_search_registered_and_general_intent_served():
+    """build_tool_registry includes grounded_search; GENERAL maps to it."""
+    from app.core.models import IntentType
+    from app.orchestration.orchestrator import _INTENT_PLAN, build_tool_registry
+
+    reg = build_tool_registry()
+    assert reg.get("grounded_search") is not None
+    assert _INTENT_PLAN[IntentType.GENERAL] == ["grounded_search"]
+
+
+def test_grounded_search_real_dispatch_calls_real_search(monkeypatch):
+    """With app_id set and use_mocks=False, _execute dispatches to _real_search."""
+    from app.core.config import Settings
+    from app.orchestration.grounded_search_tool import GroundedSearchTool
+    from app.orchestration.tools import ToolResult
+
+    s = Settings(
+        use_mocks=False, jwt_secret="a" * 64,
+        google_cloud_project="p", agent_builder_app_id="app-123",
+    )
+    tool = GroundedSearchTool(settings=s)
+    called = {}
+
+    def fake_real(query):
+        called["q"] = query
+        return ToolResult.success(tool.name, results=[{"venue": "X"}],
+                                  source="vertex_ai_search", query=query)
+
+    monkeypatch.setattr(tool, "_real_search", fake_real)
+    result = tool.invoke(query="where is the final")
+    assert called["q"] == "where is the final"
+    assert result.data["source"] == "vertex_ai_search"

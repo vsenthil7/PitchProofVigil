@@ -15,6 +15,7 @@ import type {
   TokenResponse,
   TraceSummary,
   TrendPoint,
+  DriftPoint,
   Webhook,
   Paged,
   Me,
@@ -256,6 +257,19 @@ export const api = {
     return jsonOrThrow(
       await fetch(
         `/api/analytics/latency?window_hours=${windowHours}&bucket_minutes=${bucketMinutes}`,
+        { headers: authHeaders() },
+      ),
+    );
+  },
+
+  async evaluatorDrift(
+    evaluator: string,
+    windowHours = 168,
+    bucketMinutes = 60,
+  ): Promise<DriftPoint[]> {
+    return jsonOrThrow(
+      await fetch(
+        `/api/analytics/drift/${encodeURIComponent(evaluator)}?window_hours=${windowHours}&bucket_minutes=${bucketMinutes}`,
         { headers: authHeaders() },
       ),
     );

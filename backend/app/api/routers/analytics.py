@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics import AnalyticsService
 from app.api.deps import db_session, require
-from app.api.schemas.ops import AnalyticsSummaryOut, TrendPointOut
+from app.api.schemas.ops import AnalyticsSummaryOut, DriftPointOut, TrendPointOut
 from app.auth.service import Permission, Principal
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
@@ -70,3 +70,17 @@ async def latency_trend(
 ) -> list[TrendPointOut]:
     svc = AnalyticsService(session, principal.tenant_id)
     return _points(await svc.latency_trend(window_hours, bucket_minutes))
+
+
+@router.get("/drift/{evaluator}", response_model=list[DriftPointOut])
+async def evaluator_drift(
+    evaluator: str,
+    window_hours: int = 168,
+    bucket_minutes: int = 60,
+    principal: Principal = Depends(require(Permission.READ)),
+    session: AsyncSession = Depends(db_session),
+) -> list[DriftPointOut]:
+    """Time-bucketed drift for one evaluator: mean, p10, p90, pass_rate."""
+    svc = AnalyticsService(session, principal.tenant_id)
+    points = await svc.evaluator_drift(evaluator, window_hours, bucket_minutes)
+    return [DriftPointOut(**p) for p in points]

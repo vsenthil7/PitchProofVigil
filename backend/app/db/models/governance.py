@@ -58,3 +58,35 @@ class GoldenDatasetRow(SQLModel, table=True):
     examples: list = Field(default_factory=list, sa_column=Column(JSONType))
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
+
+
+class CostBudgetRow(SQLModel, table=True):
+    """Per-tenant monthly LLM cost cap for the eval judge."""
+
+    __tablename__ = "cost_budgets"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "month", name="uq_cost_budget_tenant_month"),
+    )
+
+    id: str = Field(default_factory=uuid_str, primary_key=True)
+    tenant_id: str = Field(foreign_key="tenants.id", index=True)
+    monthly_usd_cap: float = Field(default=100.0)
+    alert_threshold_pct: float = Field(default=0.8)  # alert at 80% of cap
+    month: str = Field(index=True)  # "YYYY-MM"
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class CostEventRow(SQLModel, table=True):
+    """One LLM call cost event, for per-tenant spend aggregation."""
+
+    __tablename__ = "cost_events"
+    __table_args__ = (Index("ix_cost_tenant_month", "tenant_id", "month"),)
+
+    id: str = Field(default_factory=uuid_str, primary_key=True)
+    tenant_id: str = Field(foreign_key="tenants.id", index=True)
+    month: str = Field(index=True)  # "YYYY-MM"
+    model: str
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float
+    created_at: datetime = Field(default_factory=utcnow)

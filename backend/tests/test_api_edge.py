@@ -43,7 +43,7 @@ def test_custom_policy_applied_in_ask(owner_auth):
     # llm_judge disabled → only 10 evaluators run.
     evaluators = {e["evaluator"] for e in a.json()["evaluations"]}
     assert "llm_judge" not in evaluators
-    assert len(evaluators) == 10
+    assert len(evaluators) == 14
 
 
 def test_gate_dataset_missing_returns_zero_traces(owner_auth):
@@ -68,3 +68,19 @@ def test_stats_empty_tenant(owner_auth):
     client, headers, _ = owner_auth
     stats = client.get("/api/stats", headers=headers).json()
     assert stats["trace_count"] == 0
+
+
+# ---- P1.S4: input validation hardening ----
+
+def test_ask_rejects_oversized_payload(owner_auth):
+    """POST /api/ask with >4096 char text must return 422."""
+    client, headers, _ = owner_auth
+    resp = client.post("/api/ask", headers=headers, json={"text": "x" * 4097})
+    assert resp.status_code == 422
+
+
+def test_ask_accepts_4096_char_payload(owner_auth):
+    """4096-char text is within bounds (not a 422 validation error)."""
+    client, headers, _ = owner_auth
+    resp = client.post("/api/ask", headers=headers, json={"text": "x" * 4096})
+    assert resp.status_code != 422

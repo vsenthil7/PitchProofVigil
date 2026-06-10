@@ -122,3 +122,56 @@ def test_analytics_endpoints(owner_auth):
 
     lat = client.get("/api/analytics/latency", headers=headers).json()
     assert isinstance(lat, list) and len(lat) >= 1
+
+
+async def test_evaluator_drift_percentile_branch(db, tenant_id):
+    """>=10 scores in a bucket exercises the p10/p90 percentile path."""
+    now = datetime.now(timezone.utc)
+    async with db.session() as s:
+        for i in range(20):
+            s.add(
+                EvaluationRow(
+                    tenant_id=tenant_id, trace_id="td", evaluator="llm_judge",
+                    version="2", category="quality", verdict="pass",
+                    score=round(0.5 + i * 0.02, 4), confidence=0.9, summary="",
+                    created_at=now,
+                )
+            )
+        await s.flush()
+        svc = AnalyticsService(s, tenant_id)
+        result = await svc.evaluator_drift("llm_judge", window_hours=24, bucket_minutes=60)
+    assert len(result) >= 1
+    pt = result[-1]
+    assert pt["count"] == 20
+    assert 0.0 <= pt["p10"] <= pt["mean_score"] <= pt["p90"] <= 1.0
+    assert "pass_rate" in pt
+
+
+async def test_evaluator_drift_small_bucket_branch(db, tenant_id):
+    """<10 scores uses the min/max fallback for p10/p90."""
+    now = datetime.now(timezone.utc)
+    async with db.session() as s:
+        for sc in (0.3, 0.9, 0.6):
+            s.add(
+                EvaluationRow(
+                    tenant_id=tenant_id, trace_id="ts", evaluator="latency_slo",
+                    version="2", category="performance", verdict="pass",
+                    score=sc, confidence=0.9, summary="", created_at=now,
+                )
+            )
+        await s.flush()
+        svc = AnalyticsService(s, tenant_id)
+        result = await svc.evaluator_drift("latency_slo", window_hours=24)
+    pt = result[-1]
+    assert pt["count"] == 3
+    assert pt["p10"] == 0.3  # min
+    assert pt["p90"] == 0.9  # max
+
+
+def test_drift_endpoint(owner_auth):
+    client, headers, _ = owner_auth
+    client.post("/api/ask", headers=headers, json={"text": "I want to buy a ticket"})
+    # llm_judge runs on every ask; drift endpoint should return JSON list.
+    r = client.get("/api/analytics/drift/llm_judge", headers=headers)
+    assert r.status_code == 200
+    assert isinstance(r.json(), list)

@@ -7,6 +7,7 @@ schema (for dev/test; production uses Alembic).
 from __future__ import annotations
 
 import time
+import asyncio
 from uuid import uuid4
 from contextlib import asynccontextmanager
 
@@ -43,6 +44,28 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        # Wire OTLP tracing to Phoenix in real mode (no-op in mock mode).
+        from app.observability.tracing import configure_tracing
+
+        configure_tracing(settings)
+
+        # Swap to the distributed Redis limiter when REDIS_URL is configured;
+        # otherwise keep the in-process token bucket. Failure here is non-fatal.
+        if settings.redis_url:  # pragma: no cover - requires a reachable Redis
+            try:
+                import redis.asyncio as aioredis  # type: ignore
+
+                from app.ratelimit import RedisRateLimiter
+
+                redis_client = aioredis.from_url(settings.redis_url)
+                app.state.rate_limiter = RedisRateLimiter(
+                    redis_client=redis_client,
+                    capacity=settings.rate_limit_capacity,
+                    refill_per_second=settings.rate_limit_refill_per_second,
+                )
+            except Exception:
+                pass  # keep the in-process limiter as fallback
+
         if create_schema:
             await app.state.database.create_all()
         log.info("startup", dsn=app.state.database.dsn)
@@ -53,9 +76,16 @@ def create_app(
     app = FastAPI(title="PitchProof Vigil", version="2.0.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "X-Idempotency-Key",
+            "X-Request-ID",
+            "X-API-Key",
+        ],
     )
 
     # Shared singletons.
@@ -78,8 +108,13 @@ def create_app(
         # bearer subject). Health/metrics and unauthenticated calls are exempt.
         key = request.headers.get("x-api-key") or request.headers.get("authorization")
         if key and request.url.path.startswith("/api/"):
-            limiter: RateLimiter = app.state.rate_limiter
-            if not limiter.check(key):
+            limiter = app.state.rate_limiter
+            # RedisRateLimiter.check is async; in-process RateLimiter.check is sync.
+            if asyncio.iscoroutinefunction(limiter.check):
+                allowed = await limiter.check(key)
+            else:
+                allowed = limiter.check(key)
+            if not allowed:
                 app.state.metrics.observe_rate_limited(request.url.path)
                 return JSONResponse(
                     status_code=429,

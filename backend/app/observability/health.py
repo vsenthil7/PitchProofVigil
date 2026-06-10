@@ -119,11 +119,44 @@ class HealthService:
                 (time.perf_counter() - start) * 1000.0,
             )
 
+    async def check_phoenix_mcp(self) -> CheckResult:
+        """Phoenix MCP session is reachable (or degraded/mock).
+
+        Degraded (session unavailable) is NOT a hard failure: Phoenix can come
+        back, and the agent falls back to its local trace store meanwhile.
+        """
+        start = time.perf_counter()
+        if self.settings is None or getattr(self.settings, "use_mocks", True):
+            return CheckResult("phoenix_mcp", True, "mock mode", 0.0)
+        try:
+            from app.phoenix.mcp_client import PhoenixMCPClient
+
+            client = PhoenixMCPClient(settings=self.settings)
+            detail = (
+                "connected"
+                if client.connected
+                else "degraded (session unavailable)"
+            )
+            return CheckResult(
+                "phoenix_mcp",
+                True,
+                detail,
+                (time.perf_counter() - start) * 1000.0,
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            return CheckResult(
+                "phoenix_mcp",
+                True,
+                f"check failed: {type(exc).__name__}",
+                (time.perf_counter() - start) * 1000.0,
+            )
+
     async def readiness(self) -> ReadinessReport:
         checks = [
             await self.check_database(),
             self.check_encryption(),
             await self.check_migrations(),
+            await self.check_phoenix_mcp(),
         ]
         return ReadinessReport(ready=all(c.healthy for c in checks), checks=checks)
 

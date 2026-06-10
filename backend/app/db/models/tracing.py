@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Column, Index
+from sqlalchemy import Column, Index, String
 from sqlmodel import Field, SQLModel
 
 from app.db.models._base import JSONType, utcnow, uuid_str
@@ -15,10 +15,10 @@ class TraceRow(SQLModel, table=True):
 
     id: str = Field(primary_key=True)
     tenant_id: str = Field(foreign_key="tenants.id", index=True)
-    request_text: str
+    request_text: str = Field(sa_column=Column(String(4096)))
     language: str
     intent: str | None = Field(default=None, index=True)
-    response_text: str | None = Field(default=None)
+    response_text: str | None = Field(default=None, sa_column=Column(String(16384)))
     model: str | None = Field(default=None)
     latency_ms: float = Field(default=0.0)
     grounded_facts: dict = Field(default_factory=dict, sa_column=Column(JSONType))

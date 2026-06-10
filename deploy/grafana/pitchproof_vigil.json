@@ -1,0 +1,48 @@
+{
+  "title": "PitchProof Vigil - Eval Platform",
+  "uid": "ppv-main",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Request Rate (req/s)",
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {"expr": "rate(ppv_http_requests_total[1m])", "legendFormat": "{{method}} {{path}}"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Eval Verdict Breakdown",
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {"expr": "rate(ppv_eval_total[5m])", "legendFormat": "{{verdict}} {{evaluator}}"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Gate Pass/Fail Rate",
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 6},
+      "targets": [
+        {"expr": "rate(ppv_gate_decisions_total[5m])", "legendFormat": "passed={{passed}}"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "p99 Ask Latency (ms)",
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 6},
+      "targets": [
+        {"expr": "histogram_quantile(0.99, rate(ppv_http_request_duration_seconds_bucket{path='/api/ask'}[5m])) * 1000", "legendFormat": "p99 /api/ask"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Per-Evaluator Score Drift",
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 12},
+      "targets": [
+        {"expr": "avg_over_time(ppv_eval_score[1h])", "legendFormat": "{{evaluator}}"}
+      ]
+    }
+  ],
+  "schemaVersion": 38,
+  "version": 1
+}

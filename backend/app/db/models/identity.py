@@ -7,7 +7,7 @@ from sqlalchemy import Column, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, SQLModel
 
-from app.db.models._base import Role, utcnow, uuid_str
+from app.db.models._base import JSONType, Role, utcnow, uuid_str
 
 
 class Tenant(SQLModel, table=True):
@@ -68,3 +68,28 @@ class TenantMembership(SQLModel, table=True):
     tenant_id: str = Field(foreign_key="tenants.id", index=True)
     role: Role = Field(sa_column=Column(SAEnum(Role)))
     created_at: datetime = Field(default_factory=utcnow)
+
+
+class SSOConfigRow(SQLModel, table=True):
+    """Per-tenant SAML 2.0 Identity Provider configuration."""
+
+    __tablename__ = "sso_configs"
+    __table_args__ = (UniqueConstraint("tenant_id", name="uq_sso_tenant"),)
+
+    id: str = Field(default_factory=uuid_str, primary_key=True)
+    tenant_id: str = Field(foreign_key="tenants.id", index=True, unique=True)
+    # IdP metadata (x509 cert stored encrypted via FieldCipher at the service layer)
+    idp_entity_id: str
+    idp_sso_url: str
+    idp_x509_cert: str  # PEM-encoded; encrypted at rest
+    sp_entity_id: str = Field(default="")  # SP metadata entityID for this tenant
+    name_id_format: str = Field(
+        default="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+    )
+    attribute_mapping: dict = Field(
+        default_factory=lambda: {"email": "urn:oid:1.2.840.113549.1.9.1"},
+        sa_column=Column(JSONType),
+    )
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)

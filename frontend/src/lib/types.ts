@@ -172,6 +172,15 @@ export interface TrendPoint {
   count: number;
 }
 
+export interface DriftPoint {
+  bucket: string;
+  mean_score: number;
+  p10: number;
+  p90: number;
+  pass_rate: number;
+  count: number;
+}
+
 export interface AnalyticsSummary {
   window_hours: number;
   evaluations: number;

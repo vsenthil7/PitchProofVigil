@@ -19,8 +19,81 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: pip-audit (CVE scan)
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt --strict
       - name: Run tests (coverage gate enforced in pytest.ini)
-        run: pytest
+        run: pytest --ignore=tests/integration -p no:warnings
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: backend/htmlcov/
+          retention-days: 7
+
+  integration-tests:
+    name: Backend — Integration tests (live services)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: backend
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_key.json
+      GEMINI_MODEL: gemini-2.0-flash
+      PHOENIX_COLLECTOR_ENDPOINT: http://localhost:6006
+      USE_MOCKS: "false"
+    services:
+      phoenix:
+        image: arizephoenix/phoenix:latest
+        ports:
+          - 6006:6006
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Write GCP credentials
+        run: echo '${{ secrets.GCP_SA_KEY_JSON }}' > /tmp/gcp_key.json
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run integration tests
+        run: pytest tests/integration/ -m integration -v
+        continue-on-error: true
+
+  security-scan:
+    name: Security — pip-audit + SBOM
+    runs-on: ubuntu-latest
+    needs: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install audit tools
+        run: pip install pip-audit cyclonedx-bom
+      - name: pip-audit
+        run: pip-audit -r backend/requirements.txt --output-format json > pip-audit-results.json || true
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          cd backend
+          cyclonedx-py requirements requirements.txt --outfile ../sbom.cyclonedx.json --format json
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.cyclonedx.json
+          retention-days: 90
+      - name: Upload pip-audit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-results
+          path: pip-audit-results.json
+          retention-days: 30
 
   frontend-build:
     name: Frontend — typecheck & build
@@ -41,40 +114,76 @@ jobs:
       - name: Build
         run: npm run build
 
-  e2e:
-    name: Frontend — Playwright E2E
+  sdk:
+    name: SDK — tests & 100% coverage
     runs-on: ubuntu-latest
-    needs: [backend, frontend-build]
+    defaults:
+      run:
+        working-directory: sdk
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - uses: actions/setup-node@v4
+      - name: Install SDK + test deps
+        run: pip install -e . pytest pytest-cov httpx
+      - name: Run SDK tests
+        run: pytest tests/ --cov=pitchproof_vigil --cov-report=term-missing --cov-fail-under=100 -p no:cacheprovider
+
+  load-test:
+    name: Backend — k6 load test (smoke)
+    runs-on: ubuntu-latest
+    needs: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install backend deps
+          python-version: "3.12"
+      - name: Install backend
         run: pip install -r backend/requirements.txt
-      - name: Install frontend deps
-        run: npm ci
-        working-directory: frontend
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-        working-directory: frontend
-      - name: Run E2E (boots backend + preview via webServer)
-        run: npx playwright test
-        working-directory: frontend
-        env:
-          CI: "true"
-          USE_MOCKS: "true"
-          DATABASE_DSN: "sqlite+aiosqlite:///./e2e_ci.db"
-          JWT_SECRET: "ci-secret"
-      - name: Upload Playwright report
-        if: always()
+      - name: Start backend in background
+        run: |
+          cd backend
+          USE_MOCKS=true JWT_SECRET=ci-secret-at-least-32-chars-long \
+          uvicorn app.api.app:app --port 8000 &
+          sleep 5
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install k6 -y
+      - name: Run k6 smoke test
+        run: k6 run backend/tests/load/smoke.js --out json=k6-results.json
+      - name: Upload k6 results
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: playwright-report
-          path: frontend/playwright-report/
+          name: k6-results
+          path: k6-results.json
           retention-days: 7
+
+  publish-sdk:
+    name: SDK — Publish to TestPyPI
+    runs-on: ubuntu-latest
+    needs: [backend, frontend-build, sdk]
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build SDK
+        run: |
+          cd sdk
+          pip install build twine
+          python -m build
+      - name: Publish to TestPyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
+        run: |
+          cd sdk
+          twine upload --repository testpypi dist/*

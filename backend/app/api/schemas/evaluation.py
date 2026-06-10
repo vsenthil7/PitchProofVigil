@@ -7,7 +7,17 @@ from app.core.models import Language
 
 
 class AskRequest(BaseModel):
-    text: str = Field(min_length=1, max_length=2000)
+    text: str = Field(
+        min_length=1, max_length=4096, description="Question text. 1-4096 characters."
+    )
+    language: Language = Language.EN
+
+
+class TraceIn(BaseModel):
+    """Used when submitting pre-recorded traces for batch evaluation."""
+
+    request_text: str = Field(..., min_length=1, max_length=4096)
+    response_text: str = Field(..., min_length=1, max_length=16384)
     language: Language = Language.EN
 
 

@@ -16,6 +16,8 @@ class AuditLogRow(SQLModel, table=True):
     id: str = Field(default_factory=uuid_str, primary_key=True)
     tenant_id: str = Field(foreign_key="tenants.id", index=True)
     actor: str = Field(default="system", index=True)
+    actor_ip: str | None = Field(default=None)
+    actor_user_agent: str | None = Field(default=None)
     action: str = Field(index=True)
     target: str = Field(default="")
     detail: dict = Field(default_factory=dict, sa_column=Column(JSONType))

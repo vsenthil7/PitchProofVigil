@@ -49,7 +49,7 @@ def test_ask_full_flow(owner_auth):
     assert r.status_code == 200
     j = r.json()
     assert j["intent"] == "kickoff_time"
-    assert len(j["evaluations"]) == 11
+    assert len(j["evaluations"]) == 15
     assert "20:00" in j["answer"]
     assert j["passed"] is True
     assert "correctness" in j["category_scores"]
@@ -114,7 +114,7 @@ def test_gate_dataset(owner_auth):
 def test_list_evaluators(owner_auth):
     client, headers, _ = owner_auth
     evs = client.get("/api/policies/evaluators", headers=headers).json()
-    assert len(evs) == 11
+    assert len(evs) == 15
     assert any(e["category"] == "safety" for e in evs)
 
 

@@ -154,3 +154,43 @@ class AnalyticsService:
             "evaluations": total,
             "pass_rate": round(passed / total, 4) if total else 0.0,
         }
+
+    async def evaluator_drift(
+        self,
+        evaluator: str,
+        window_hours: int = 168,  # 7 days
+        bucket_minutes: int = 60,
+    ) -> list[dict]:
+        """Time-bucketed score drift for one evaluator: mean, p10, p90, pass_rate."""
+        since = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+        rows = [
+            r for r in await self._evaluations_since(since) if r.evaluator == evaluator
+        ]
+        buckets: dict[datetime, list[float]] = defaultdict(list)
+        for r in rows:
+            b = _floor_to_bucket(r.created_at, bucket_minutes)
+            buckets[b].append(r.score)
+
+        result: list[dict] = []
+        for b in sorted(buckets):
+            scores = sorted(buckets[b])
+            n = len(scores)
+            mean = round(sum(scores) / n, 4) if n else 0.0
+            if n >= 10:
+                p10 = scores[max(0, int(n * 0.1) - 1)]
+                p90 = scores[min(n - 1, int(n * 0.9))]
+            else:
+                p10 = scores[0] if scores else 0.0
+                p90 = scores[-1] if scores else 0.0
+            pass_rate = round(sum(1 for s in scores if s >= 0.85) / n, 4) if n else 0.0
+            result.append(
+                {
+                    "bucket": b.isoformat(),
+                    "mean_score": mean,
+                    "p10": round(p10, 4),
+                    "p90": round(p90, 4),
+                    "pass_rate": pass_rate,
+                    "count": n,
+                }
+            )
+        return result

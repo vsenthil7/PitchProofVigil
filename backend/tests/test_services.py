@@ -44,7 +44,7 @@ async def test_eval_service_persists_and_scores(db, tenant_id):
     async with db.session() as s:
         assert await TraceRepository(s, tenant_id).count() == 1
         evals = await EvaluationRepository(s, tenant_id).for_trace(out.trace.trace_id)
-        assert len(evals) == 11
+        assert len(evals) == 15
 
 
 async def test_eval_service_alerts_on_blocking(db, tenant_id):

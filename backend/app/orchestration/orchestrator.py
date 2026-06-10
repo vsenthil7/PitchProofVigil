@@ -37,13 +37,16 @@ class OrchestrationResult:
     plan: list[str] = field(default_factory=list)
 
 
-def build_tool_registry() -> ToolRegistry:
+def build_tool_registry(settings=None) -> ToolRegistry:
+    from app.orchestration.grounded_search_tool import GroundedSearchTool
+
     reg = ToolRegistry()
     reg.register(FixtureLookupTool())
     reg.register(KickoffTool())
     reg.register(GateLookupTool())
     reg.register(TranslationTool())
     reg.register(TicketingTool())
+    reg.register(GroundedSearchTool(settings=settings))
     return reg
 
 
@@ -52,8 +55,9 @@ _INTENT_PLAN: dict[IntentType, list[str]] = {
     IntentType.KICKOFF_TIME: ["kickoff_time"],
     IntentType.GATE_INFO: ["gate_lookup"],
     IntentType.TICKETING: ["ticketing_info"],
-    IntentType.TRAVEL: ["fixture_lookup"],
-    IntentType.STADIUM_NAV: ["fixture_lookup"],
+    IntentType.TRAVEL: ["fixture_lookup", "grounded_search"],
+    IntentType.STADIUM_NAV: ["fixture_lookup", "grounded_search"],
+    IntentType.GENERAL: ["grounded_search"],
 }
 
 
@@ -122,6 +126,17 @@ class ConciergeOrchestrator:
                 f"For {fx['venue']} in {fx['city']}, public transit is "
                 f"recommended on matchday."
             )
+        elif intent == IntentType.GENERAL and primary.data.get("results"):
+            # Grounded search: surface the top matched fixture/venue.
+            top = primary.data["results"][0]
+            if "venue" in top:
+                text = (
+                    f"Based on tournament data: {top.get('home', '')} vs "
+                    f"{top.get('away', '')} is at {top['venue']}"
+                    f"{', ' + top['city'] if top.get('city') else ''}."
+                ).replace(" vs  is", " info is")
+            else:
+                text = "Here is the most relevant tournament information I found."
         else:
             text = "I'm sorry, I don't have that information yet."
         return text, grounded
@@ -143,6 +158,8 @@ class ConciergeOrchestrator:
             elif tool_name == "gate_lookup" and teams:
                 kwargs["team_a"] = teams[0]
                 kwargs["section"] = self._section_from_text(req.text)
+            elif tool_name == "grounded_search":
+                kwargs["query"] = req.text
             results.append(self._invoke(tool_name, **kwargs))
 
         text, grounded = self._compose(intent, results, req.language.value)

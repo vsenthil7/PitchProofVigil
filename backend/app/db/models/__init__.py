@@ -12,13 +12,27 @@ from app.db.models._base import (
     uuid_str,
 )
 from app.db.models.audit import AuditLogRow
+from app.db.models.compliance import ComplianceExportJobRow
 from app.db.models.evaluation import EvaluationRow
+from app.db.models.experiments import (
+    ExperimentItemResultRow,
+    ExperimentRow,
+    ExperimentRunRow,
+)
 from app.db.models.governance import (
+    CostBudgetRow,
+    CostEventRow,
     GateDecisionRow,
     GatePolicyRow,
     GoldenDatasetRow,
 )
-from app.db.models.identity import APIKey, Tenant, TenantMembership, User
+from app.db.models.identity import (
+    APIKey,
+    SSOConfigRow,
+    Tenant,
+    TenantMembership,
+    User,
+)
 from app.db.models.idempotency import IdempotencyKeyRow
 from app.db.models.ops import AlertRow
 from app.db.models.tracing import SpanRow, TraceRow
@@ -31,12 +45,19 @@ __all__ = [
     "utcnow",
     "uuid_str",
     "AuditLogRow",
+    "ComplianceExportJobRow",
+    "CostBudgetRow",
+    "CostEventRow",
     "EvaluationRow",
+    "ExperimentRow",
+    "ExperimentRunRow",
+    "ExperimentItemResultRow",
     "GateDecisionRow",
     "GatePolicyRow",
     "GoldenDatasetRow",
     "IdempotencyKeyRow",
     "APIKey",
+    "SSOConfigRow",
     "TenantMembership",
     "Tenant",
     "User",

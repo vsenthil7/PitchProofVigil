@@ -1,0 +1,34 @@
+name: "PitchProof Vigil Gate Check"
+description: "Run the PitchProof Vigil promotion gate check from CI"
+inputs:
+  base-url:
+    description: "PitchProof Vigil API base URL"
+    required: true
+  api-key:
+    description: "PitchProof Vigil API key"
+    required: true
+  candidate-version:
+    description: "The agent version being promoted"
+    required: true
+  dataset-id:
+    description: "Dataset ID to evaluate against"
+    required: true
+  policy:
+    description: "Gate policy name (default: production)"
+    default: "production"
+runs:
+  using: "composite"
+  steps:
+    - name: Install SDK
+      shell: bash
+      run: pip install pitchproof-vigil-sdk httpx
+    - name: Run gate check
+      shell: bash
+      env:
+        PPV_BASE_URL: ${{ inputs.base-url }}
+        PPV_API_KEY: ${{ inputs.api-key }}
+      run: |
+        ppv gate-check \
+          --version "${{ inputs.candidate-version }}" \
+          --dataset "${{ inputs.dataset-id }}" \
+          --policy "${{ inputs.policy }}"

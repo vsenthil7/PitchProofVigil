@@ -352,7 +352,7 @@ def test_llm_judge_real_path(monkeypatch):
     class FakeClient:
         def __init__(self, **kw):
             self.models = types.SimpleNamespace(
-                generate_content=lambda model, contents: FakeResult()
+                generate_content=lambda model, contents, config=None: FakeResult()
             )
 
     fake_genai.Client = FakeClient
@@ -361,17 +361,76 @@ def test_llm_judge_real_path(monkeypatch):
     monkeypatch.setitem(sys.modules, "google", fake_google)
     monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
 
-    ev = LLMJudgeEvaluator(Settings(use_mocks=False, google_cloud_project="p"))
+    ev = LLMJudgeEvaluator(Settings(use_mocks=False, jwt_secret="a"*64, google_cloud_project="p"))
     assert ev.mode == "real"
     out = ev.evaluate(_ctx(_trace(text="excellent answer", grounded={"x": 1})))
     assert out.verdict == Verdict.PASS
     assert out.metadata["rubric_score"] == 5.0
 
 
+def test_llm_judge_retries_on_json_decode_error(monkeypatch):
+    """A non-JSON first response triggers exactly one retry, then succeeds."""
+    calls = {"n": 0}
+
+    class FakeResult:
+        @property
+        def text(self):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return "This is not JSON at all."
+            return '{"score": 4, "reason": "retry worked"}'
+
+    class FakeClient:
+        def __init__(self, **kw):
+            self.models = types.SimpleNamespace(
+                generate_content=lambda model, contents, config=None: FakeResult()
+            )
+
+    fake_genai = types.ModuleType("genai")
+    fake_genai.Client = FakeClient
+    fake_google = types.ModuleType("google")
+    fake_google.genai = fake_genai
+    monkeypatch.setitem(sys.modules, "google", fake_google)
+    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
+
+    ev = LLMJudgeEvaluator(Settings(use_mocks=False, jwt_secret="a"*64, google_cloud_project="p"))
+    out = ev.evaluate(_ctx(_trace(text="answer", grounded={"x": 1})))
+    assert calls["n"] == 2  # first bad JSON, second parsed
+    assert out.metadata["rubric_score"] == 4.0
+
+
+def test_llm_judge_uses_max_output_tokens(monkeypatch):
+    """generate_content must receive max_output_tokens=256 and temperature=0.0."""
+    received = {}
+
+    class FakeResult:
+        text = '{"score": 3, "reason": "ok"}'
+
+    def _gen(model, contents, config=None):
+        received.update(config or {})
+        return FakeResult()
+
+    class FakeClient:
+        def __init__(self, **kw):
+            self.models = types.SimpleNamespace(generate_content=_gen)
+
+    fake_genai = types.ModuleType("genai")
+    fake_genai.Client = FakeClient
+    fake_google = types.ModuleType("google")
+    fake_google.genai = fake_genai
+    monkeypatch.setitem(sys.modules, "google", fake_google)
+    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
+
+    ev = LLMJudgeEvaluator(Settings(use_mocks=False, jwt_secret="a"*64, google_cloud_project="p"))
+    ev.evaluate(_ctx(_trace(text="y", grounded={"x": 1})))
+    assert received.get("max_output_tokens") == 256
+    assert received.get("temperature") == 0.0
+
+
 # ---- Registry ----
 
 def test_build_default_registry():
     reg = build_default_registry(Settings(use_mocks=True))
-    assert len(reg) == 11
+    assert len(reg) == 15
     cats = {s.category.value for s in reg.specs()}
     assert "safety" in cats and "correctness" in cats and "performance" in cats

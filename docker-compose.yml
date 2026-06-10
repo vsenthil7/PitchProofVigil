@@ -13,17 +13,46 @@ services:
       timeout: 3s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    ports:
+      - "6006:6006"
+    environment:
+      PHOENIX_WORKING_DIR: /mnt/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:6006/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   backend:
     build: ./backend
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       USE_MOCKS: "${USE_MOCKS:-true}"
       DATABASE_DSN: "postgresql://ppv:ppv_secret@db:5432/pitchproof"
-      JWT_SECRET: "${JWT_SECRET:-change-me-in-production}"
+      JWT_SECRET: "${JWT_SECRET:-dev-insecure-secret-change-me}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:8080}"
       GOOGLE_CLOUD_PROJECT: "${GOOGLE_CLOUD_PROJECT:-}"
       PHOENIX_COLLECTOR_ENDPOINT: "${PHOENIX_COLLECTOR_ENDPOINT:-http://phoenix:6006}"
+      REDIS_URL: "${REDIS_URL:-redis://redis:6379/0}"
+      PAGERDUTY_ROUTING_KEY: "${PAGERDUTY_ROUTING_KEY:-}"
+      SLACK_WEBHOOK_URL: "${SLACK_WEBHOOK_URL:-}"
     ports:
       - "8000:8000"
 
@@ -33,9 +62,3 @@ services:
       - backend
     ports:
       - "8080:80"
-
-  # Optional self-hosted Arize Phoenix (free/OSS). Uncomment to enable.
-  # phoenix:
-  #   image: arizephoenix/phoenix:latest
-  #   ports:
-  #     - "6006:6006"

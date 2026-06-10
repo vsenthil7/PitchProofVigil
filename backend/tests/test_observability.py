@@ -114,3 +114,71 @@ def test_readiness_report_unready_dict():
     assert d["ready"] is False
     assert d["checks"][0]["healthy"] is False
     assert d["checks"][0]["detail"] == "down"
+
+
+# ---- P2.S3: Phoenix MCP readiness check ----
+
+async def test_readiness_includes_phoenix_mcp_check(db):
+    """readiness() must include a phoenix_mcp check entry (mock mode)."""
+    hs = HealthService(db, settings=Settings(use_mocks=True))
+    report = await hs.readiness()
+    names = [c.name for c in report.checks]
+    assert "phoenix_mcp" in names
+    pm = next(c for c in report.checks if c.name == "phoenix_mcp")
+    assert pm.healthy is True and pm.detail == "mock mode"
+
+
+async def test_phoenix_mcp_check_real_mode_degraded(db):
+    """Real mode with no live session -> degraded but not a hard failure."""
+    s = Settings(use_mocks=False, jwt_secret="a" * 64, phoenix_collector_endpoint="")
+    hs = HealthService(db, settings=s)
+    result = await hs.check_phoenix_mcp()
+    assert result.name == "phoenix_mcp"
+    assert result.healthy is True
+    assert "degraded" in result.detail
+
+
+async def test_phoenix_mcp_check_real_mode_connected(db, monkeypatch):
+    """Real mode with a live session reports connected."""
+    import app.phoenix.mcp_client as mc
+
+    class FakeSession:
+        def call_tool(self, name, args):
+            return []
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(mc, "default_session_factory", lambda s: FakeSession())
+    s = Settings(use_mocks=False, jwt_secret="a" * 64)
+    hs = HealthService(db, settings=s)
+    result = await hs.check_phoenix_mcp()
+    assert result.healthy is True and result.detail == "connected"
+
+
+# ---- P2.S5: OTLP tracing config (mock-safe) ----
+
+def test_configure_tracing_noop_in_mock_mode():
+    """configure_tracing is a no-op in mock mode (no OTel import/exporter)."""
+    from app.observability.tracing import configure_tracing
+    # Must not raise and must not require any OTel package.
+    configure_tracing(Settings(use_mocks=True))
+
+
+def test_get_tracer_and_noop_span_are_safe():
+    """get_tracer returns something usable; the no-op span supports the API."""
+    from app.observability.tracing import _NoOpSpan, _NoOpTracer, get_tracer
+
+    tracer = get_tracer("test")
+    with tracer.start_as_current_span("test-span"):
+        pass
+
+    # Exercise the explicit no-op tracer/span surface directly.
+    noop = _NoOpTracer()
+    with noop.start_as_current_span("s"):
+        pass
+    span = noop.start_span("s")
+    span.set_attribute("k", "v")
+    with span:
+        pass
+    assert isinstance(_NoOpSpan(), _NoOpSpan)

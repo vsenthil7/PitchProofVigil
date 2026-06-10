@@ -100,7 +100,7 @@ def test_tracer_real_mode_register_called(monkeypatch):
     monkeypatch.setitem(sys.modules, "phoenix", fake_phoenix)
     monkeypatch.setitem(sys.modules, "phoenix.otel", fake_otel)
 
-    tracer = Tracer(Settings(use_mocks=False))
+    tracer = Tracer(Settings(use_mocks=False, jwt_secret="a"*64))
     assert tracer.mode == "real"
     assert calls["project"] == "pitchproof-vigil"
     assert "/v1/traces" in calls["endpoint"]
@@ -119,7 +119,7 @@ def test_tracer_real_mode_register_failure(monkeypatch):
     monkeypatch.setitem(sys.modules, "phoenix", fake_phoenix)
     monkeypatch.setitem(sys.modules, "phoenix.otel", fake_otel)
 
-    tracer = Tracer(Settings(use_mocks=False))
+    tracer = Tracer(Settings(use_mocks=False, jwt_secret="a"*64))
     assert tracer._tracer_provider is None
 
 
@@ -147,7 +147,7 @@ def test_tracer_export_real_invokes_exporter(monkeypatch):
 
     store = TraceStore()
     agent = ConciergeAgent(Settings(use_mocks=True))
-    tracer = Tracer(Settings(use_mocks=False), store=store)
+    tracer = Tracer(Settings(use_mocks=False, jwt_secret="a"*64), store=store)
     req = ConciergeRequest(text="buy a ticket")
     trace = tracer.record(req, agent.answer(req))
     assert captured["trace_id"] == trace.trace_id
@@ -169,7 +169,7 @@ def test_tracer_export_real_exporter_raises(monkeypatch):
 
     store = TraceStore()
     agent = ConciergeAgent(Settings(use_mocks=True))
-    tracer = Tracer(Settings(use_mocks=False), store=store)
+    tracer = Tracer(Settings(use_mocks=False, jwt_secret="a"*64), store=store)
     req = ConciergeRequest(text="buy a ticket")
     # Should not raise despite exporter raising.
     tracer.record(req, agent.answer(req))
@@ -190,34 +190,68 @@ def test_tracer_export_real_no_export_method(monkeypatch):
 
     store = TraceStore()
     agent = ConciergeAgent(Settings(use_mocks=True))
-    tracer = Tracer(Settings(use_mocks=False), store=store)
+    tracer = Tracer(Settings(use_mocks=False, jwt_secret="a"*64), store=store)
     req = ConciergeRequest(text="buy a ticket")
     tracer.record(req, agent.answer(req))  # should not raise
 
 
-def test_mcp_real_connect_success(monkeypatch):
-    fake_mcp = types.ModuleType("mcp")
-
-    class FakeClientSession:
-        pass
-
-    fake_mcp.ClientSession = FakeClientSession
-    monkeypatch.setitem(sys.modules, "mcp", fake_mcp)
-    client = PhoenixMCPClient(Settings(use_mocks=False))
+def test_mcp_real_mode_without_session_falls_back_to_store(populated_store):
+    """Real mode but the factory yields no session -> serve from local store."""
+    client = PhoenixMCPClient(
+        Settings(use_mocks=False, jwt_secret="a" * 64),
+        store=populated_store,
+        session_factory=lambda s: None,
+    )
     assert client.mode == "real"
-    # session not established until first real call
+    assert client.connected is False
+    # Calls still work, served from the store.
+    assert isinstance(client.list_traces(limit=5), list)
+
+
+def test_mcp_real_connect_failure_is_swallowed():
+    """A throwing factory leaves the client disconnected, never crashing."""
+    def boom(_settings):
+        raise RuntimeError("cannot reach MCP server")
+
+    client = PhoenixMCPClient(
+        Settings(use_mocks=False, jwt_secret="a" * 64), session_factory=boom
+    )
     assert client.connected is False
 
 
-def test_mcp_real_connect_failure(monkeypatch):
-    """If mcp import fails, _session stays None and connected is False."""
-    monkeypatch.setitem(sys.modules, "mcp", None)
-    client = PhoenixMCPClient(Settings(use_mocks=False))
-    assert client.connected is False
+def test_mcp_real_session_routes_calls(populated_store):
+    """A live session routes tool calls to the MCP server, not the store."""
+    calls: list[tuple[str, dict]] = []
+
+    class FakeSession:
+        def call_tool(self, name, args):
+            calls.append((name, args))
+            if name == "list_traces":
+                return ["live-trace"]
+            if name == "get_trace":
+                return "live-one"
+            return {"stored": True, "live": True}
+
+        def close(self):
+            pass
+
+    client = PhoenixMCPClient(
+        Settings(use_mocks=False, jwt_secret="a" * 64),
+        store=populated_store,
+        session_factory=lambda s: FakeSession(),
+    )
+    assert client.connected is True
+    assert client.list_traces(limit=3) == ["live-trace"]
+    assert client.get_trace("t1") == "live-one"
+    # Build a minimal trace to exercise add_dataset_example routing.
+    some = populated_store.list(limit=1)[0]
+    result = client.add_dataset_example("ds", some)
+    assert result.get("live") is True
+    assert [c[0] for c in calls] == ["list_traces", "get_trace", "add_dataset_example"]
 
 
-def test_mcp_call_tool_raises(monkeypatch):
-    monkeypatch.setitem(sys.modules, "mcp", types.ModuleType("mcp"))
-    client = PhoenixMCPClient(Settings(use_mocks=False))
-    with pytest.raises(RuntimeError):
-        client._call_tool("list_traces", {})
+def test_default_session_factory_returns_none_without_endpoint():
+    """With no collector endpoint, the default factory yields no session."""
+    from app.phoenix.mcp_client import default_session_factory
+    s = Settings(use_mocks=False, jwt_secret="a" * 64, phoenix_collector_endpoint="")
+    assert default_session_factory(s) is None

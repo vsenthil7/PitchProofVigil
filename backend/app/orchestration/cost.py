@@ -66,3 +66,69 @@ class CostLedger:
             "output_tokens": self.total_output_tokens,
             "cost_usd": self.total_cost_usd,
         }
+
+
+class CostBudgetEnforcer:
+    """Checks per-tenant monthly spend cap before allowing an LLM judge call."""
+
+    def __init__(self, session, tenant_id: str) -> None:
+        self.session = session
+        self.tenant_id = tenant_id
+
+    async def check_budget(
+        self, estimated_cost_usd: float = 0.001
+    ) -> tuple[bool, str]:
+        """Return (allowed, reason). allowed=False blocks the LLM call."""
+        from datetime import datetime, timezone
+
+        from sqlalchemy import func, select
+
+        from app.db.models.governance import CostBudgetRow, CostEventRow
+
+        month = datetime.now(timezone.utc).strftime("%Y-%m")
+
+        stmt = select(CostBudgetRow).where(
+            CostBudgetRow.tenant_id == self.tenant_id,
+            CostBudgetRow.month == month,
+        )
+        budget = (await self.session.execute(stmt)).scalars().first()
+        if budget is None:
+            return True, "no_budget_configured"
+
+        stmt2 = select(func.sum(CostEventRow.cost_usd)).where(
+            CostEventRow.tenant_id == self.tenant_id,
+            CostEventRow.month == month,
+        )
+        current_spend = (await self.session.execute(stmt2)).scalar() or 0.0
+
+        projected = current_spend + estimated_cost_usd
+        if projected > budget.monthly_usd_cap:
+            return False, (
+                f"BUDGET_EXCEEDED: projected ${projected:.4f} > "
+                f"cap ${budget.monthly_usd_cap:.2f}"
+            )
+        if current_spend >= budget.monthly_usd_cap * budget.alert_threshold_pct:
+            return True, (
+                f"BUDGET_THRESHOLD_ALERT: "
+                f"{current_spend:.4f}/{budget.monthly_usd_cap:.2f}"
+            )
+        return True, "ok"
+
+    async def record_event(
+        self, model: str, input_tokens: int, output_tokens: int, cost_usd: float
+    ) -> None:
+        """Persist a cost event for auditing and aggregation."""
+        from datetime import datetime, timezone
+
+        from app.db.models.governance import CostEventRow
+
+        event = CostEventRow(
+            tenant_id=self.tenant_id,
+            month=datetime.now(timezone.utc).strftime("%Y-%m"),
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost_usd=cost_usd,
+        )
+        self.session.add(event)
+        await self.session.flush()

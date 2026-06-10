@@ -32,3 +32,4 @@ class AlertChannel(str, enum.Enum):
     LOG = "log"
     WEBHOOK = "webhook"
     SLACK = "slack"
+    PAGERDUTY = "pagerduty"

@@ -36,7 +36,23 @@ python-jose[cryptography]==3.3.0
 # Observability (E4)
 prometheus-client==0.21.1
 structlog==24.4.0
+defusedxml>=0.7.1
 
 # Resilience (E5)
 tenacity==9.0.0
 pydantic-settings==2.7.0
+
+# ---- Live/optional integrations -----------------------------------------
+# These are only imported lazily in real mode (USE_MOCKS=false). They are NOT
+# required for mock-mode runtime or the test suite. Install with the live
+# extra when deploying against real Phoenix/Arize/Redis/SSO.
+# NOTE: `mcp` pulls a newer starlette than FastAPI 0.115 pins; install it in a
+# dedicated live image/venv, not the default runtime.
+# mcp>=1.0.0,<2.0.0
+# httpx-sse>=0.4.0
+# redis[asyncio]>=5.0.0
+# fakeredis[aioredis]>=2.20.0
+# google-cloud-discoveryengine>=0.11.0
+# pysaml2>=7.4.0
+# defusedxml>=0.7.0
+# cyclonedx-bom>=4.0.0

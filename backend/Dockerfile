@@ -2,6 +2,10 @@ FROM python:3.12-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# Supply-chain: fail the image build on known CVEs in pinned dependencies.
+RUN pip install --no-cache-dir pip-audit \
+    && pip-audit -r requirements.txt --strict \
+    && pip uninstall -y pip-audit
 COPY app ./app
 COPY migrations ./migrations
 COPY alembic.ini .

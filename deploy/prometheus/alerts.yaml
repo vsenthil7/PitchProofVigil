@@ -1,0 +1,43 @@
+# PitchProof Vigil - Prometheus alerting rules
+groups:
+  - name: pitchproof-vigil
+    rules:
+      - alert: HighEvalFailureRate
+        expr: |
+          rate(ppv_eval_total{verdict="fail"}[5m]) /
+          rate(ppv_eval_total[5m]) > 0.20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Eval failure rate > 20% for 5m"
+          description: "Eval failure rate is {{ $value | humanizePercentage }}."
+
+      - alert: GateBlockRateSpike
+        expr: |
+          rate(ppv_gate_decisions_total{passed="false"}[10m]) > 0.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Gate block rate > 50%"
+          description: "More than 50% of gate decisions are BLOCKED."
+
+      - alert: AskAPIHighLatency
+        expr: |
+          histogram_quantile(0.99, rate(ppv_http_request_duration_seconds_bucket{path="/api/ask"}[5m])) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "POST /api/ask p99 latency > 2s"
+          description: "p99 latency is {{ $value }}s."
+
+      - alert: RateLimitBurst
+        expr: |
+          rate(ppv_rate_limited_total[1m]) > 10
+        for: 2m
+        labels:
+          severity: info
+        annotations:
+          summary: "More than 10 requests rate-limited per minute"
