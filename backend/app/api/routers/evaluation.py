@@ -35,14 +35,10 @@ async def ask(
 ) -> AskResponse:
     orchestrator = get_orchestrator(request)
     metrics = get_metrics_dep(request)
-    # Wire a per-request event bus: audit handler persists, metrics handler
-    # records gate movements. Decouples side-effects from the core workflow.
-    from app.events.bus import EventBus
-    from app.events.handlers import AuditHandler
-    from app.repositories.audit import AuditRepository
+    # Unified event bus: audit persistence, metrics, and live webhook delivery.
+    from app.notifications import build_event_bus
 
-    bus = EventBus()
-    bus.subscribe_all(AuditHandler(AuditRepository(session, principal.tenant_id)))
+    bus = build_event_bus(session, principal.tenant_id, metrics)
     service = EvaluationService(
         tenant_id=principal.tenant_id,
         orchestrator=orchestrator,

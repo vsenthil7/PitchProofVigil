@@ -171,6 +171,20 @@ export const api = {
     );
   },
 
+  async createDatasetIdempotent(
+    name: string,
+    examples: unknown[],
+    idempotencyKey: string,
+  ): Promise<unknown> {
+    return jsonOrThrow(
+      await fetch("/api/datasets", {
+        method: "POST",
+        headers: authHeaders({ "Idempotency-Key": idempotencyKey }),
+        body: JSON.stringify({ name, examples }),
+      }),
+    );
+  },
+
   async deleteWebhook(id: string): Promise<{ deactivated: string }> {
     return jsonOrThrow(
       await fetch(`/api/webhooks/${id}`, { method: "DELETE", headers: authHeaders() }),

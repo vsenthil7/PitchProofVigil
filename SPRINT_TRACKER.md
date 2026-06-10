@@ -293,3 +293,36 @@ analytics), never reduced.
   handlers (Metrics, Audit). Bus wired into the live /api/ask flow.
 - Audit log + webhook subscription tables, repositories, and /api/audit +
   /api/webhooks endpoints (RBAC-gated).
+
+---
+
+## Phase G — Delivery, Reliability & Depth (in progress)
+
+Closing the F7 gap and adding the next tier. No scope reduction.
+
+| Sprint | Module | Status |
+|---|---|---|
+| G1 | Webhook delivery: signed payloads, HMAC, retry, status persist | ✅ Done |
+| G2 | WebhookDeliveryHandler subscribed to event bus (live dispatch) | ✅ Done |
+| G3 | Split repositories/registry -> repositories/ package by aggregate | ✅ Done |
+| G4 | Idempotency keys for mutating endpoints (dedupe replays) | ✅ Done |
+| G5 | Notification fan-out: alerts + webhooks via one notifier | ✅ Done |
+| G6 | Frontend: webhook delivery status + signing secret reveal | ✅ Done |
+
+### Phase G — FINAL STATE
+- webhooks/ package: signing (HMAC-SHA256, t=…,v1=… header, replay-window
+  verify), delivery (async retry, 5xx-retries / 4xx-terminal, status persisted).
+- events/handlers.py gained WebhookHandler; notifications/ assembles a bus with
+  audit + metrics + webhook handlers (build_event_bus), wired into /api/ask.
+- repositories/ split into identity, governance, alerts (+ traces, audit);
+  registry.py is now a thin compat re-export.
+- idempotency/ package + IdempotencyKeyRow; /api/datasets honors an
+  Idempotency-Key header (replay returns the original 201, no double-create).
+- Alembic: 3rd revision (idempotency_keys); chain upgrades to 13 tables and
+  downgrades to base cleanly.
+- Frontend: webhooks manager gained a signing-secret field, an HMAC hint, and a
+  color-coded delivery-status badge per subscription.
+
+Backend now 70 modules, 317 tests, 100% coverage, 13 tables.
+Frontend: 6 tabs, 29 Playwright specs, clean build.
+Webhook delivery is now genuinely live end-to-end (the F7 gap is closed).

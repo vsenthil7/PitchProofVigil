@@ -19,6 +19,7 @@ from app.db.models.governance import (
     GoldenDatasetRow,
 )
 from app.db.models.identity import APIKey, Tenant, User
+from app.db.models.idempotency import IdempotencyKeyRow
 from app.db.models.ops import AlertRow
 from app.db.models.tracing import SpanRow, TraceRow
 from app.db.models.webhooks import WebhookSubscriptionRow
@@ -34,6 +35,7 @@ __all__ = [
     "GateDecisionRow",
     "GatePolicyRow",
     "GoldenDatasetRow",
+    "IdempotencyKeyRow",
     "APIKey",
     "Tenant",
     "User",

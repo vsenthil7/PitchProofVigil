@@ -43,3 +43,25 @@ class AuditHandler:
             target=str(event.payload.get("candidate") or event.payload.get("trace_id") or ""),
             detail=event.payload,
         )
+
+
+class WebhookHandler:
+    """Fans a domain event out to every matching webhook subscription.
+
+    The event type maps to the subscription's ``event_type`` string. Delivery
+    is delegated to the WebhookDeliveryService (signed, retried, status-saved).
+    """
+
+    def __init__(self, delivery_service) -> None:
+        self.delivery = delivery_service
+
+    async def __call__(self, event) -> None:
+        await self.delivery.deliver_to_event(
+            event.type.value,
+            {
+                "type": event.type.value,
+                "tenant_id": event.tenant_id,
+                "payload": event.payload,
+                "occurred_at": event.occurred_at.isoformat(),
+            },
+        )

@@ -15,6 +15,7 @@ export function WebhooksManager() {
   const [hooks, setHooks] = useState<Webhook[]>([]);
   const [url, setUrl] = useState("");
   const [eventType, setEventType] = useState(EVENT_TYPES[2]);
+  const [secret, setSecret] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const load = () => {
@@ -31,8 +32,9 @@ export function WebhooksManager() {
   const create = async () => {
     setError(null);
     try {
-      await api.createWebhook(url, eventType);
+      await api.createWebhook(url, eventType, secret);
       setUrl("");
+      setSecret("");
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "create failed");
@@ -75,6 +77,14 @@ export function WebhooksManager() {
             </option>
           ))}
         </select>
+        <input
+          className="input"
+          data-testid="webhook-secret"
+          placeholder="signing secret (optional)"
+          value={secret}
+          onChange={(e) => setSecret(e.target.value)}
+          style={{ maxWidth: 220 }}
+        />
         <button
           className="btn btn-primary"
           data-testid="webhook-create"
@@ -84,6 +94,11 @@ export function WebhooksManager() {
           Subscribe
         </button>
       </div>
+
+      <p className="hint" data-testid="webhook-hint">
+        Deliveries are signed with HMAC-SHA256 (header <code>X-PPV-Signature: t=…,v1=…</code>)
+        and retried up to 3× on 5xx. Verify with your secret to reject replays.
+      </p>
 
       {error && (
         <div className="auth-error" data-testid="webhook-error">
@@ -97,23 +112,32 @@ export function WebhooksManager() {
         </div>
       ) : (
         <div data-testid="webhook-list">
-          {hooks.map((h) => (
-            <div className="webhook-row" key={h.id} data-testid="webhook-row">
-              <span className="webhook-event">{h.event_type}</span>
-              <span className="webhook-url">{h.url}</span>
-              <span className={`webhook-status ${h.active ? "on" : "off"}`}>
-                {h.active ? "active" : "inactive"}
-                {h.last_status != null ? ` · ${h.last_status}` : ""}
-              </span>
-              <button
-                className="btn btn-ghost btn-small"
-                data-testid={`webhook-delete-${h.id}`}
-                onClick={() => remove(h.id)}
-              >
-                Remove
-              </button>
-            </div>
-          ))}
+          {hooks.map((h) => {
+            const ok = h.last_status != null && h.last_status >= 200 && h.last_status < 300;
+            const statusCls = h.last_status == null ? "pending" : ok ? "ok" : "fail";
+            return (
+              <div className="webhook-row" key={h.id} data-testid="webhook-row">
+                <span className="webhook-event">{h.event_type}</span>
+                <span className="webhook-url">{h.url}</span>
+                <span className={`webhook-status ${h.active ? "on" : "off"}`}>
+                  {h.active ? "active" : "inactive"}
+                </span>
+                <span
+                  className={`delivery-badge ${statusCls}`}
+                  data-testid={`delivery-${h.id}`}
+                >
+                  {h.last_status == null ? "no delivery" : `last ${h.last_status}`}
+                </span>
+                <button
+                  className="btn btn-ghost btn-small"
+                  data-testid={`webhook-delete-${h.id}`}
+                  onClick={() => remove(h.id)}
+                >
+                  Remove
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </section>
