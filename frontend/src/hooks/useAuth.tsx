@@ -19,6 +19,7 @@ interface AuthState {
     password: string,
   ) => Promise<string>;
   logout: () => void;
+  switchTenant: (tenantId: string) => void;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -32,7 +33,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (tenantId: string, email: string, password: string) => {
       const { access_token } = await api.login(tenantId, email, password);
       setToken(access_token);
-      setSession({ token: access_token, tenantId, email });
+      // Resolve the full identity (role + tenant list) so the UI can render a
+      // role badge, a tenant switcher, and RBAC-aware navigation.
+      const me = await api.me();
+      setSession({
+        token: access_token,
+        tenantId: me.tenant_id,
+        email: me.email ?? email,
+        role: me.role,
+        tenantName: me.tenant_name,
+        tenants: me.tenants,
+      });
     },
     [],
   );
@@ -51,9 +62,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   }, []);
 
+  const switchTenant = useCallback((tenantId: string) => {
+    // Owners can view multiple tenants; switching updates the active scope.
+    setSession((s) =>
+      s && s.tenants.some((t) => t.id === tenantId)
+        ? { ...s, tenantId, tenantName: s.tenants.find((t) => t.id === tenantId)!.name }
+        : s,
+    );
+  }, []);
+
   const value = useMemo(
-    () => ({ session, login, register, logout }),
-    [session, login, register, logout],
+    () => ({ session, login, register, logout, switchTenant }),
+    [session, login, register, logout, switchTenant],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

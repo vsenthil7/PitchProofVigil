@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TopBar } from "./components/TopBar";
+import { Sidebar } from "./components/Sidebar";
 import { Console } from "./components/Console";
 import { GatePanel } from "./components/GatePanel";
 import { StatsPanel } from "./components/StatsPanel";
@@ -10,62 +11,55 @@ import { PolicyEditor } from "./pages/PolicyEditor";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { AuditView } from "./pages/AuditView";
 import { WebhooksManager } from "./pages/WebhooksManager";
+import { HealthPage } from "./pages/HealthPage";
+import { allowedTabs, type Tab } from "./lib/nav";
 
-type Tab = "console" | "gate" | "policies" | "analytics" | "audit" | "webhooks";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "console", label: "Console" },
-  { id: "gate", label: "Promotion Gate" },
-  { id: "policies", label: "Policies" },
-  { id: "analytics", label: "Analytics" },
-  { id: "audit", label: "Audit" },
-  { id: "webhooks", label: "Webhooks" },
-];
-
-// Tabs split the operator workflow. The right rail (platform health) shows on
-// the operational tabs; full-width tabs (policies, analytics, audit, webhooks)
-// use the whole canvas.
+// The shell: grouped collapsible sidebar + top bar + the active surface. The
+// right rail (platform stats) shows only on the operational tabs; the rest use
+// the full canvas.
 function Dashboard() {
+  const { session } = useAuth();
   const { stats, refresh } = useStats();
   const [tab, setTab] = useState<Tab>("console");
 
-  const fullWidth = tab === "policies" || tab === "analytics" || tab === "audit" || tab === "webhooks";
+  // RBAC guard: if the session's role can't open the current tab (e.g. after a
+  // tenant switch lands a viewer on an admin tab), fall back to Console.
+  const allowed = allowedTabs(session!.role);
+  useEffect(() => {
+    if (!allowed.has(tab)) setTab("console");
+  }, [allowed, tab]);
+
+  const fullWidth =
+    tab === "policies" || tab === "analytics" || tab === "audit" ||
+    tab === "webhooks" || tab === "health";
 
   return (
     <div className="app">
       <TopBar />
-
-      <div className="tabs" data-testid="tabs">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            className={`tab ${tab === t.id ? "active" : ""}`}
-            data-testid={`tab-${t.id}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {fullWidth ? (
-        <>
-          {tab === "policies" && <PolicyEditor />}
-          {tab === "analytics" && <AnalyticsPage />}
-          {tab === "audit" && <AuditView />}
-          {tab === "webhooks" && <WebhooksManager />}
-        </>
-      ) : (
-        <div className="grid">
-          <div>
-            {tab === "console" && <Console onTraceAdded={refresh} />}
-            {tab === "gate" && <GatePanel onGateRun={refresh} />}
-          </div>
-          <div>
-            <StatsPanel stats={stats} />
-          </div>
+      <div className="shell">
+        <Sidebar tab={tab} onSelect={setTab} />
+        <div className="surface" data-testid="surface">
+          {fullWidth ? (
+            <>
+              {tab === "policies" && <PolicyEditor />}
+              {tab === "analytics" && <AnalyticsPage />}
+              {tab === "audit" && <AuditView />}
+              {tab === "webhooks" && <WebhooksManager />}
+              {tab === "health" && <HealthPage />}
+            </>
+          ) : (
+            <div className="grid">
+              <div>
+                {tab === "console" && <Console onTraceAdded={refresh} />}
+                {tab === "gate" && <GatePanel onGateRun={refresh} />}
+              </div>
+              <div>
+                <StatsPanel stats={stats} />
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

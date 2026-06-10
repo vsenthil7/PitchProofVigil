@@ -4,7 +4,7 @@ import { registerAndLogin } from "./helpers";
 test.describe("Promotion Gate", () => {
   test.beforeEach(async ({ page }) => {
     await registerAndLogin(page);
-    await page.getByTestId("tab-gate").click();
+    await page.getByTestId("nav-gate").click();
     await expect(page.getByTestId("gate-panel")).toBeVisible();
   });
 
@@ -31,7 +31,7 @@ test.describe("Promotion Gate", () => {
 test.describe("Policy Editor", () => {
   test.beforeEach(async ({ page }) => {
     await registerAndLogin(page);
-    await page.getByTestId("tab-policies").click();
+    await page.getByTestId("nav-policies").click();
   });
 
   test("lists all evaluators and saves a policy", async ({ page }) => {

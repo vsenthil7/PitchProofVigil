@@ -12,7 +12,7 @@ test.describe("Analytics, Audit, Webhooks", () => {
     await page.getByTestId("ask-btn").click();
     await expect(page.getByTestId("ask-result")).toBeVisible();
 
-    await page.getByTestId("tab-analytics").click();
+    await page.getByTestId("nav-analytics").click();
     await expect(page.getByTestId("analytics-page")).toBeVisible();
     await expect(page.getByTestId("analytics-summary")).toBeVisible();
     // Pass-rate trend renders (chart or empty state).
@@ -20,7 +20,7 @@ test.describe("Analytics, Audit, Webhooks", () => {
   });
 
   test("analytics window toggle switches range", async ({ page }) => {
-    await page.getByTestId("tab-analytics").click();
+    await page.getByTestId("nav-analytics").click();
     await page.getByTestId("window-1h").click();
     await expect(page.getByTestId("window-1h")).toHaveClass(/chip-active/);
     await page.getByTestId("window-7d").click();
@@ -33,7 +33,7 @@ test.describe("Analytics, Audit, Webhooks", () => {
     await page.getByTestId("ask-btn").click();
     await expect(page.getByTestId("ask-result")).toBeVisible();
 
-    await page.getByTestId("tab-audit").click();
+    await page.getByTestId("nav-audit").click();
     await expect(page.getByTestId("audit-view")).toBeVisible();
     await expect(page.getByTestId("audit-row").first()).toBeVisible();
   });
@@ -45,7 +45,7 @@ test.describe("Analytics, Audit, Webhooks", () => {
       await page.getByTestId("ask-btn").click();
       await expect(page.getByTestId("ask-result")).toBeVisible();
     }
-    await page.getByTestId("tab-audit").click();
+    await page.getByTestId("nav-audit").click();
     await expect(page.getByTestId("audit-view")).toBeVisible();
     // First page caps at 25 rows; a load-more button is present.
     await expect(page.getByTestId("audit-load-more")).toBeVisible();
@@ -63,14 +63,14 @@ test.describe("Analytics, Audit, Webhooks", () => {
     await page.getByTestId("ask-btn").click();
     await expect(page.getByTestId("ask-result")).toBeVisible();
 
-    await page.getByTestId("tab-audit").click();
+    await page.getByTestId("nav-audit").click();
     await page.getByTestId("audit-filter").fill("eval.blocking_failure");
     await page.getByTestId("audit-apply").click();
     await expect(page.getByTestId("audit-row").first()).toBeVisible();
   });
 
   test("webhooks manager creates and removes a subscription", async ({ page }) => {
-    await page.getByTestId("tab-webhooks").click();
+    await page.getByTestId("nav-webhooks").click();
     await expect(page.getByTestId("webhooks-manager")).toBeVisible();
     await expect(page.getByTestId("webhook-hint")).toBeVisible();
     // Encryption-status banner is shown.
@@ -91,7 +91,7 @@ test.describe("Analytics, Audit, Webhooks", () => {
   });
 
   test("create button disabled without url", async ({ page }) => {
-    await page.getByTestId("tab-webhooks").click();
+    await page.getByTestId("nav-webhooks").click();
     await expect(page.getByTestId("webhook-create")).toBeDisabled();
   });
 });

@@ -17,6 +17,8 @@ import type {
   TrendPoint,
   Webhook,
   Paged,
+  Me,
+  TenantSummary,
 } from "./types";
 
 let _token: string | null = null;
@@ -95,6 +97,31 @@ export const api = {
     );
   },
 
+  async me(): Promise<Me> {
+    return jsonOrThrow(await fetch("/api/auth/me", { headers: authHeaders() }));
+  },
+
+  async listTenants(): Promise<TenantSummary[]> {
+    return jsonOrThrow(await fetch("/api/auth/tenants", { headers: authHeaders() }));
+  },
+
+  async health(): Promise<{ status: string }> {
+    return jsonOrThrow(await fetch("/health"));
+  },
+
+  async ready(): Promise<{ ready: boolean; checks?: Record<string, unknown> }> {
+    return jsonOrThrow(await fetch("/ready"));
+  },
+
+  async securityStatus(): Promise<{
+    encryption_at_rest: boolean;
+    key_ring_size: number;
+    using_ephemeral_dev_key: boolean;
+    rotation_supported: boolean;
+  }> {
+    return jsonOrThrow(await fetch("/api/security/status"));
+  },
+
   // ---- Ask / evaluate ----
   async ask(text: string, language: Language = "en"): Promise<AskResponse> {
     return jsonOrThrow(
@@ -153,20 +180,6 @@ export const api = {
 
   async listPolicies(): Promise<Policy[]> {
     return jsonOrThrow(await fetch("/api/policies", { headers: authHeaders() }));
-  },
-
-  // ---- Health ----
-  async ready(): Promise<{ ready: boolean }> {
-    return jsonOrThrow(await fetch("/ready"));
-  },
-
-  async securityStatus(): Promise<{
-    encryption_at_rest: boolean;
-    key_ring_size: number;
-    using_ephemeral_dev_key: boolean;
-    rotation_supported: boolean;
-  }> {
-    return jsonOrThrow(await fetch("/api/security/status"));
   },
 
   // ---- Audit ----

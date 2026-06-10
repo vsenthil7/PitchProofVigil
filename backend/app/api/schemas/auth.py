@@ -46,3 +46,21 @@ class APIKeyResponse(BaseModel):
     prefix: str
     role: Role
     api_key: str  # full key, shown once
+
+
+class TenantSummary(BaseModel):
+    id: str
+    name: str
+    slug: str
+
+
+class MeResponse(BaseModel):
+    """The authenticated caller's identity, for the UI to render role/tenant."""
+    subject: str
+    kind: str  # "user" | "api_key"
+    email: str | None
+    role: Role
+    tenant_id: str
+    tenant_name: str
+    # Tenants this caller may view/switch to. Owners see all; others see their own.
+    tenants: list[TenantSummary]

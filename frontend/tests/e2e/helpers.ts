@@ -11,5 +11,5 @@ export async function registerAndLogin(page: Page): Promise<void> {
   await page.getByTestId("email").fill(`owner-${unique}@org.com`);
   await page.getByTestId("password").fill("pw12345678");
   await page.getByTestId("auth-submit").click();
-  await expect(page.getByTestId("tabs")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("sidebar")).toBeVisible({ timeout: 15_000 });
 }

@@ -400,3 +400,49 @@ Self-review (reviewer hat) found real gaps. Fixing them, not adding surface.
 Backend now ~82 modules, 362 tests, 100% coverage, 13 tables.
 Frontend: 6 tabs, 30 Playwright specs, clean build.
 All five reviewer findings closed.
+
+---
+
+## Phase J — Enterprise UX parity (SpoofVane patterns applied)
+
+Using the SpoofVane console as the reference for what "enterprise-grade UX"
+looks like, bring its strongest patterns to PitchProof Vigil. Backend gains the
+identity endpoint the UI needs; frontend gains role/tenant awareness, grouped
+collapsible navigation, and a live platform-health self-check.
+
+| Sprint | Scope | Status |
+|---|---|---|
+| J1 | Backend: `/api/auth/me` (role + tenant + email) + tenant list endpoint | ✅ Done |
+| J2 | Frontend: session carries role + tenants; fetch /me after login | ✅ Done |
+| J3 | Role badge + tenant switcher in the TopBar (switch re-scopes data) | ✅ Done |
+| J4 | Grouped, collapsible left-nav (Operate / Analyze / Govern / Admin) | ✅ Done |
+| J5 | RBAC-aware nav: hide tabs the role can't use; 403-safe | ✅ Done |
+| J6 | Platform-health page: live self-checks (API, readiness, security, build) | ✅ Done |
+| J7 | Tests: backend /me + tenants; frontend e2e for nav groups, switch, health | ✅ Done |
+
+
+### Phase J — FINAL STATE
+- Backend gained `GET /api/auth/me` (subject, kind, email, role, tenant_id,
+  tenant_name, and the tenants the caller may view) and `GET /api/auth/tenants`.
+  Owners see all tenants; everyone else sees only their own — the UI never shows
+  data the backend wouldn't authorize. 5 new tests; suite now **367 / 100%**.
+- Frontend `Session` now carries role + tenantName + tenants; the auth hook
+  fetches `/me` after login and exposes `switchTenant`.
+- TopBar shows a colour-coded **role badge** and a **tenant switcher**
+  (disabled when the caller has a single tenant).
+- New grouped, collapsible **Sidebar** (Operate / Analyze / Govern / Administer)
+  driven by a pure, role-filtered `buildNavSections` in `lib/nav.ts`. Empty
+  groups are dropped; collapse hides labels and leaves an icon rail.
+- App guards the active tab against the role (RBAC-aware; falls back to Console
+  if a role can't open the current surface).
+- New **Platform Health** page runs live self-checks against `/health`,
+  `/ready`, `/api/security/status`, plus client invariants (session, nav wiring),
+  auto-refreshing every 5s — the PitchProof analogue of SpoofVane's demo-health.
+- Tests: nav RBAC/grouping verified by `tests/unit/nav.check.mts`
+  (node --experimental-strip-types); new `navigation.spec.ts` e2e (role badge,
+  grouped nav, collapse, gate reachability, health). 35 e2e specs across 6 files
+  parse; execution needs the webServer + browser (run in CI / Claude Desktop).
+
+Reference: patterns adapted from the SpoofVane console (grouped collapsible nav,
+role/tenant chrome, live health self-check), applied natively to PitchProof's
+tab-based control room and real RBAC/tenant model.

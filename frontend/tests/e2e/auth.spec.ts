@@ -19,7 +19,7 @@ test.describe("Authentication", () => {
   test("register lands on the dashboard", async ({ page }) => {
     await registerAndLogin(page);
     await expect(page.getByTestId("session-bar")).toBeVisible();
-    await expect(page.getByTestId("tab-console")).toBeVisible();
+    await expect(page.getByTestId("nav-console")).toBeVisible();
   });
 
   test("logout returns to the auth screen", async ({ page }) => {

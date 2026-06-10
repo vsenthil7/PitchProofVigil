@@ -122,10 +122,29 @@ export interface GateDecisionSummary {
   created_at: string;
 }
 
+export interface TenantSummary {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface Me {
+  subject: string;
+  kind: "user" | "api_key";
+  email: string | null;
+  role: Role;
+  tenant_id: string;
+  tenant_name: string;
+  tenants: TenantSummary[];
+}
+
 export interface Session {
   token: string;
   tenantId: string;
   email: string;
+  role: Role;
+  tenantName: string;
+  tenants: TenantSummary[];
 }
 
 // ---- Ops & analytics (F9) ----
