@@ -1,9 +1,10 @@
-fastapi==0.115.6
+﻿fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
 httpx==0.28.1
 websockets==14.1
 python-dotenv==1.0.1
+python-multipart==0.0.20  # required by SSO/SAML form endpoints (FastAPI form data)
 numpy==2.2.1
 
 # Observability / Arize Phoenix (OpenInference + OpenTelemetry)
@@ -20,6 +21,7 @@ google-genai==0.3.0
 pytest==8.3.4
 pytest-asyncio==0.25.0
 pytest-cov==6.0.0
+fakeredis[aioredis]>=2.20.0  # async Redis fakes for rate-limiter unit tests
 
 # Persistence (E2)
 sqlmodel==0.0.22
@@ -51,7 +53,6 @@ pydantic-settings==2.7.0
 # mcp>=1.0.0,<2.0.0
 # httpx-sse>=0.4.0
 # redis[asyncio]>=5.0.0
-# fakeredis[aioredis]>=2.20.0
 # google-cloud-discoveryengine>=0.11.0
 # pysaml2>=7.4.0
 # defusedxml>=0.7.0

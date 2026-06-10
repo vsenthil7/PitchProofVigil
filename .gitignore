@@ -12,6 +12,15 @@ node_modules/
 dist/
 playwright-report/
 test-results/
-
 # OS
 .DS_Store
+backend/.venv/
+backend/htmlcov/
+backend/*.db
+backend/.coverage
+backend/pip_install*.log
+backend/pytest_run.log
+backend/requirements.test.txt
+frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
