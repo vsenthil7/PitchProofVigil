@@ -1,4 +1,4 @@
-// Navigation model: the operator workflow split into RBAC-gated, grouped items.
+﻿// Navigation model: the operator workflow split into RBAC-gated, grouped items.
 // Pure data + a pure builder so the grouping/role logic is unit-testable
 // without React (mirrors the backend's pure-logic discipline).
 import type { Role } from "./types";
@@ -10,7 +10,8 @@ export type Tab =
   | "analytics"
   | "audit"
   | "webhooks"
-  | "health";
+  | "health"
+  | "organizations";
 
 export type NavGroup = "Operate" | "Analyze" | "Govern" | "Administer";
 
@@ -36,13 +37,14 @@ export function roleAllows(role: Role, minRole: Role): boolean {
 
 // The canonical nav. Order within a group is declaration order.
 export const NAV_ITEMS: NavItem[] = [
-  { id: "console",   label: "Console",        group: "Operate",    minRole: "viewer",   icon: "▸" },
-  { id: "gate",      label: "Promotion Gate", group: "Operate",    minRole: "operator", icon: "⊟" },
-  { id: "analytics", label: "Analytics",      group: "Analyze",    minRole: "viewer",   icon: "◔" },
-  { id: "policies",  label: "Policies",       group: "Govern",     minRole: "admin",    icon: "§" },
-  { id: "audit",     label: "Audit",          group: "Govern",     minRole: "viewer",   icon: "⛓" },
-  { id: "webhooks",  label: "Webhooks",       group: "Administer", minRole: "admin",    icon: "⇲" },
-  { id: "health",    label: "Platform Health",group: "Administer", minRole: "viewer",   icon: "♥" },
+  { id: "console",   label: "Console",        group: "Operate",    minRole: "viewer",   icon: "â–¸" },
+  { id: "gate",      label: "Promotion Gate", group: "Operate",    minRole: "operator", icon: "âŠŸ" },
+  { id: "analytics", label: "Analytics",      group: "Analyze",    minRole: "viewer",   icon: "â—”" },
+  { id: "policies",  label: "Policies",       group: "Govern",     minRole: "admin",    icon: "Â§" },
+  { id: "audit",     label: "Audit",          group: "Govern",     minRole: "viewer",   icon: "â›“" },
+  { id: "webhooks",  label: "Webhooks",       group: "Administer", minRole: "admin",    icon: "â‡²" },
+  { id: "health",    label: "Platform Health",group: "Administer", minRole: "viewer",   icon: "â™¥" },
+  { id: "organizations", label: "Organizations",  group: "Administer", minRole: "owner",     icon: "OG" },
 ];
 
 export const NAV_GROUP_ORDER: NavGroup[] = ["Operate", "Analyze", "Govern", "Administer"];
@@ -54,7 +56,7 @@ export interface NavSection {
 
 /**
  * Build ordered nav sections visible to `role`. Groups with no visible item
- * are dropped (no empty headers). Pure — unit-tested in nav.test.ts.
+ * are dropped (no empty headers). Pure â€” unit-tested in nav.test.ts.
  */
 export function buildNavSections(role: Role): NavSection[] {
   const visible = NAV_ITEMS.filter((i) => roleAllows(role, i.minRole));

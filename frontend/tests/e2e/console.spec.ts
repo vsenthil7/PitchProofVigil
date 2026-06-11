@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+﻿import { test, expect } from "@playwright/test";
 import { registerAndLogin } from "./helpers";
 
 test.describe("Console", () => {
@@ -12,8 +12,9 @@ test.describe("Console", () => {
     await expect(page.getByTestId("ask-result")).toBeVisible();
     await expect(page.getByTestId("category-scores")).toBeVisible();
     await expect(page.getByTestId("aggregate-verdict")).toContainText("PASS");
-    // 11 evaluators run.
-    await expect(page.getByTestId("eval-row")).toHaveCount(11);
+    // 15 evaluators run: 11 base (correctness/grounding/safety/quality + LLM judge)
+    //   + 4 red-team (prompt-injection, PII, toxicity, off-topic). See backend registry.py.
+    await expect(page.getByTestId("eval-row")).toHaveCount(15);
   });
 
   test("kickoff query returns authoritative time", async ({ page }) => {
@@ -28,7 +29,7 @@ test.describe("Console", () => {
   });
 
   test("evaluator findings drill-down expands", async ({ page }) => {
-    // A query with no team → groundedness FAIL with a finding to expand.
+    // A query with no team â†’ groundedness FAIL with a finding to expand.
     await page.getByTestId("ask-input").fill("which gate do I use");
     await page.getByTestId("ask-btn").click();
     await expect(page.getByTestId("ask-result")).toBeVisible();

@@ -1,4 +1,4 @@
-// Enterprise API client. Carries the bearer token on every authenticated call
+﻿// Enterprise API client. Carries the bearer token on every authenticated call
 // and exposes the full surface: auth, ask, gate, policies, datasets, stats.
 
 import type {
@@ -112,6 +112,16 @@ export const api = {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({ tenant_id: tenantId }),
+      }),
+    );
+  },
+
+  async setTenantActive(tenantId: string, isActive: boolean): Promise<TenantSummary> {
+    return jsonOrThrow(
+      await fetch(`/api/auth/tenants/${tenantId}/active`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ is_active: isActive }),
       }),
     );
   },

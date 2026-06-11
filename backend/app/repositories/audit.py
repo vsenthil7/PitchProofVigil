@@ -1,4 +1,4 @@
-"""Audit log and webhook-subscription repositories (tenant-scoped)."""
+﻿"""Audit log and webhook-subscription repositories (tenant-scoped)."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -101,8 +101,11 @@ class WebhookRepository:
         return [self._decrypt_secret(r) for r in rows]
 
     async def list(self) -> list[WebhookSubscriptionRow]:
+        # Only active (non-deactivated) subscriptions are surfaced; deleting a
+        # webhook deactivates it, which removes it from this list.
         stmt = select(WebhookSubscriptionRow).where(
-            WebhookSubscriptionRow.tenant_id == self.tenant_id
+            WebhookSubscriptionRow.tenant_id == self.tenant_id,
+            WebhookSubscriptionRow.active == True,  # noqa: E712
         )
         return list((await self.session.execute(stmt)).scalars().all())
 

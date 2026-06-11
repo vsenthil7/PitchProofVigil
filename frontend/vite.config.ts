@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+﻿import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 // The dashboard talks to the FastAPI backend on :8000. In dev we proxy
@@ -14,6 +14,8 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
       },
+      "/health": { target: "http://localhost:8000", changeOrigin: true },
+      "/ready": { target: "http://localhost:8000", changeOrigin: true },
     },
   },
   preview: {
@@ -24,6 +26,8 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
       },
+      "/health": { target: "http://localhost:8000", changeOrigin: true },
+      "/ready": { target: "http://localhost:8000", changeOrigin: true },
     },
   },
 });

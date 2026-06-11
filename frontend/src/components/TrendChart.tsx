@@ -1,4 +1,4 @@
-import type { TrendPoint } from "../lib/types";
+﻿import type { TrendPoint } from "../lib/types";
 
 interface Props {
   points: TrendPoint[];
@@ -21,7 +21,7 @@ export function TrendChart({
 }: Props) {
   if (points.length === 0) {
     return (
-      <div className="trend-empty" data-testid="trend-empty">
+      <div className="trend-empty" data-testid={`trend-empty-${label}`}>
         no data in this window yet
       </div>
     );

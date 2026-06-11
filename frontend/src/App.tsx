@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { TopBar } from "./components/TopBar";
 import { Sidebar } from "./components/Sidebar";
 import { Console } from "./components/Console";
@@ -12,6 +12,7 @@ import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { AuditView } from "./pages/AuditView";
 import { WebhooksManager } from "./pages/WebhooksManager";
 import { HealthPage } from "./pages/HealthPage";
+import { OrganizationsPage } from "./pages/OrganizationsPage";
 import { allowedTabs, type Tab } from "./lib/nav";
 
 // The shell: grouped collapsible sidebar + top bar + the active surface. The
@@ -31,7 +32,7 @@ function Dashboard() {
 
   const fullWidth =
     tab === "policies" || tab === "analytics" || tab === "audit" ||
-    tab === "webhooks" || tab === "health";
+    tab === "webhooks" || tab === "health" || tab === "organizations";
 
   return (
     <div className="app">
@@ -46,6 +47,7 @@ function Dashboard() {
               {tab === "audit" && <AuditView />}
               {tab === "webhooks" && <WebhooksManager />}
               {tab === "health" && <HealthPage />}
+          {tab === "organizations" && <OrganizationsPage />}
             </>
           ) : (
             <div className="grid">

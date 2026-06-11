@@ -1,4 +1,4 @@
-// Types mirroring the enterprise API (schemas_v2.py).
+﻿// Types mirroring the enterprise API (schemas_v2.py).
 
 export type Language = "en" | "es" | "fr" | "de" | "pt";
 export type Role = "owner" | "admin" | "operator" | "viewer";
@@ -126,6 +126,7 @@ export interface TenantSummary {
   id: string;
   name: string;
   slug: string;
+  is_active: boolean;
 }
 
 export interface Me {

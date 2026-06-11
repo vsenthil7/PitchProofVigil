@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+﻿import { test, expect } from "@playwright/test";
 import { registerAndLogin } from "./helpers";
 
 test.describe("Analytics, Audit, Webhooks", () => {
@@ -16,7 +16,7 @@ test.describe("Analytics, Audit, Webhooks", () => {
     await expect(page.getByTestId("analytics-page")).toBeVisible();
     await expect(page.getByTestId("analytics-summary")).toBeVisible();
     // Pass-rate trend renders (chart or empty state).
-    await expect(page.getByTestId("trend-Pass rate").or(page.getByTestId("trend-empty"))).toBeVisible();
+    await expect(page.getByTestId("trend-Pass rate").or(page.getByTestId("trend-empty-Pass rate"))).toBeVisible();
   });
 
   test("analytics window toggle switches range", async ({ page }) => {
