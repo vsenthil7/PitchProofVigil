@@ -1,4 +1,4 @@
-"""Authentication principal, RBAC, and the auth service.
+﻿"""Authentication principal, RBAC, and the auth service.
 
 A ``Principal`` is the authenticated caller (from a JWT or an API key) carrying
 tenant_id and role. RBAC maps roles to a permission set; the ``require``
@@ -21,7 +21,7 @@ from app.auth.security import (
     verify_password,
 )
 from app.core.config import Settings, get_settings
-from app.db.models import APIKey, Role, User
+from app.db.models import APIKey, Role, Tenant, User
 from app.repositories.registry import (
     MembershipRepository,
     APIKeyRepository,
@@ -143,6 +143,12 @@ class AuthService:
             raise AuthError("Invalid credentials.")
         if not verify_password(password, user.hashed_password):
             raise AuthError("Invalid credentials.")
+        # Org lifecycle: a disabled tenant blocks all logins (data retained,
+        # but no one signs in until re-enabled). Checked after the password so
+        # we never reveal tenant state to an unauthenticated caller.
+        tenant = await self.tenants.get(tenant_id)
+        if tenant is None or not tenant.is_active:
+            raise AuthError("Organization is disabled.", status_code=403)
         return create_access_token(
             user.id, user.tenant_id, user.role.value, self.settings
         )
@@ -182,6 +188,27 @@ class AuthService:
             role_value = membership.role.value
 
         return create_access_token(user.id, target_tenant_id, role_value, self.settings)
+
+    async def set_tenant_active(
+        self, principal: "Principal", tenant_id: str, is_active: bool
+    ) -> "Tenant":
+        """Enable or disable an organization (owner-only platform action).
+
+        Disabling retains all data but blocks new logins and tenant-switches
+        into the org. A principal may not disable their own active tenant
+        (that would lock them out mid-session); switch elsewhere first.
+        """
+        if Permission.ADMIN not in permissions_for(principal.role):
+            raise AuthError("Not authorized.", status_code=403)
+        if not is_active and tenant_id == principal.tenant_id:
+            raise AuthError(
+                "Cannot disable the organization you are signed into.",
+                status_code=409,
+            )
+        tenant = await self.tenants.set_active(tenant_id, is_active)
+        if tenant is None:
+            raise AuthError("Tenant not found.", status_code=404)
+        return tenant
 
     async def create_api_key(
         self, tenant_id: str, name: str, role: Role

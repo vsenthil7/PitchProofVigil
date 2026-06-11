@@ -1,4 +1,4 @@
-"""Auth router: register, login, users, API keys."""
+﻿"""Auth router: register, login, users, API keys."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,6 +14,7 @@ from app.api.schemas import (
     MeResponse,
     RegisterRequest,
     RegisterResponse,
+    SetTenantActiveRequest,
     SwitchTenantRequest,
     TenantSummary,
     TokenResponse,
@@ -65,7 +66,7 @@ async def me(
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(db_session),
 ) -> MeResponse:
-    """The authenticated caller's identity — role, tenant, and visible tenants.
+    """The authenticated caller's identity â€” role, tenant, and visible tenants.
 
     Owners can see (and switch to) every tenant; everyone else sees only their
     own. This is what lets the UI render a role badge and a tenant switcher
@@ -90,7 +91,7 @@ async def me(
         # Platform owners can see and switch to every tenant.
         visible = await tenants_repo.list()
     else:
-        # Effective set = home tenant ∪ explicit memberships.
+        # Effective set = home tenant âˆª explicit memberships.
         ids: list[str] = []
         if home_tenant_id:
             ids.append(home_tenant_id)
@@ -113,7 +114,7 @@ async def me(
         role=principal.role,
         tenant_id=principal.tenant_id,
         tenant_name=tenant_name,
-        tenants=[TenantSummary(id=t.id, name=t.name, slug=t.slug) for t in visible],
+        tenants=[TenantSummary(id=t.id, name=t.name, slug=t.slug, is_active=t.is_active) for t in visible],
     )
 
 
@@ -137,12 +138,33 @@ async def switch_tenant(
     return TokenResponse(access_token=token)
 
 
+@router.patch("/tenants/{tenant_id}/active", response_model=TenantSummary)
+async def set_tenant_active(
+    tenant_id: str,
+    body: SetTenantActiveRequest,
+    principal: Principal = Depends(get_principal),
+    session: AsyncSession = Depends(db_session),
+    settings: Settings = Depends(get_settings_dep),
+) -> TenantSummary:
+    """Enable or disable an organization (owner-only platform action).
+
+    Disabling retains all data but blocks new logins and switches into the
+    org. You cannot disable the org you are currently signed into.
+    """
+    auth = AuthService(session, settings)
+    try:
+        tenant = await auth.set_tenant_active(principal, tenant_id, body.is_active)
+    except AuthError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message)
+    return TenantSummary(id=tenant.id, name=tenant.name, slug=tenant.slug, is_active=tenant.is_active)
+
+
 @router.get("/tenants", response_model=list[TenantSummary])
 async def list_tenants(
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(db_session),
 ) -> list[TenantSummary]:
-    """Tenants the caller may view. Owners: all; others: home ∪ memberships."""
+    """Tenants the caller may view. Owners: all; others: home âˆª memberships."""
     tenants_repo = TenantRepository(session)
     if principal.role == Role.OWNER:
         tenants = await tenants_repo.list()
@@ -158,7 +180,7 @@ async def list_tenants(
             t = await tenants_repo.get(tid)
             if t is not None:
                 tenants.append(t)
-    return [TenantSummary(id=t.id, name=t.name, slug=t.slug) for t in tenants]
+    return [TenantSummary(id=t.id, name=t.name, slug=t.slug, is_active=t.is_active) for t in tenants]
 
 
 @router.post("/users", status_code=201)

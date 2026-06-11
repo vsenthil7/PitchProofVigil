@@ -1,4 +1,4 @@
-"""Identity & tenancy repositories: tenants, users, API keys."""
+﻿"""Identity & tenancy repositories: tenants, users, API keys."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -32,6 +32,17 @@ class TenantRepository:
 
     async def list(self) -> list[Tenant]:
         return list((await self.session.execute(select(Tenant))).scalars().all())
+
+    async def set_active(self, tenant_id: str, is_active: bool) -> Tenant | None:
+        """Enable or disable a tenant (org lifecycle). Returns the updated
+        tenant, or None if it does not exist. Disabling a tenant blocks new
+        logins and tenant-switches into it without deleting any data."""
+        tenant = await self.session.get(Tenant, tenant_id)
+        if tenant is None:
+            return None
+        tenant.is_active = is_active
+        await self.session.flush()
+        return tenant
 
 
 class UserRepository:

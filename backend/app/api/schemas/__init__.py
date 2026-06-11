@@ -1,4 +1,4 @@
-"""API schema package — re-exports every schema for ergonomic imports.
+﻿"""API schema package â€” re-exports every schema for ergonomic imports.
 
 Schemas are organized by domain (auth, evaluation, gate, policy, dataset) but
 callers can import any of them from ``app.api.schemas`` directly.
@@ -7,6 +7,7 @@ from app.api.schemas.auth import (
     APIKeyResponse,
     MeResponse,
     GrantMembershipRequest,
+    SetTenantActiveRequest,
     SwitchTenantRequest,
     TenantSummary,
     CreateAPIKeyRequest,
@@ -35,6 +36,7 @@ __all__ = [
     "APIKeyResponse",
     "MeResponse",
     "GrantMembershipRequest",
+    "SetTenantActiveRequest",
     "SwitchTenantRequest",
     "TenantSummary",
     "CreateAPIKeyRequest",

@@ -1,4 +1,4 @@
-"""Auth-related API schemas."""
+﻿"""Auth-related API schemas."""
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
@@ -52,10 +52,17 @@ class TenantSummary(BaseModel):
     id: str
     name: str
     slug: str
+    is_active: bool = True
 
 
 class SwitchTenantRequest(BaseModel):
     tenant_id: str
+
+
+class SetTenantActiveRequest(BaseModel):
+    """Enable or disable an organization (owner-only)."""
+
+    is_active: bool
 
 
 class GrantMembershipRequest(BaseModel):
