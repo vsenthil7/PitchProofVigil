@@ -1,26 +1,30 @@
-﻿fastapi==0.115.6
+fastapi==0.136.3
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
 httpx==0.28.1
 websockets==14.1
-python-dotenv==1.0.1
-python-multipart==0.0.20  # required by SSO/SAML form endpoints (FastAPI form data)
+python-dotenv==1.2.2
+python-multipart==0.0.27  # required by SSO/SAML form endpoints (FastAPI form data)
 numpy==2.2.1
 
 # Observability / Arize Phoenix (OpenInference + OpenTelemetry)
-arize-phoenix==7.9.0
+# arize-phoenix (server) intentionally NOT installed in the backend image:
+# the Phoenix *server* runs as its own container (arizephoenix/phoenix), and the
+# backend only exports OTLP spans to it. The server pkg pins a vulnerable
+# strawberry-graphql (CVE) and needs sqlean-py (C++ build); neither is needed.
+# arize-phoenix==7.9.0  # use the phoenix container, not the in-image server
 arize-phoenix-otel==0.6.1
 openinference-instrumentation==0.1.21
 opentelemetry-sdk==1.29.0
 opentelemetry-exporter-otlp==1.29.0
 
 # Google Gemini
-google-genai==0.3.0
+google-genai==1.39.1
 
 # Testing
-pytest==8.3.4
-pytest-asyncio==0.25.0
-pytest-cov==6.0.0
+pytest==9.0.3
+pytest-asyncio==1.4.0
+pytest-cov==7.1.0
 fakeredis[aioredis]>=2.20.0  # async Redis fakes for rate-limiter unit tests
 
 # Persistence (E2)
@@ -33,7 +37,7 @@ aiosqlite==0.20.0
 # Auth & security (E3)
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]==3.5.0
 
 # Observability (E4)
 prometheus-client==0.21.1
