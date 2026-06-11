@@ -1,10 +1,10 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 
 // Combined login / register screen. Registration creates a tenant + owner and
 // logs straight in; login needs an existing tenant id.
 export function LoginPage() {
-  const { login, register } = useAuth();
+  const { login, register, demoLogin } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("register");
   const [tenantId, setTenantId] = useState("");
   const [tenantName, setTenantName] = useState("");
@@ -13,6 +13,19 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
+
+  const startDemo = async () => {
+    setDemoBusy(true);
+    setError(null);
+    try {
+      await demoLogin();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Demo failed");
+    } finally {
+      setDemoBusy(false);
+    }
+  };
 
   const submit = async () => {
     setBusy(true);
@@ -35,7 +48,7 @@ export function LoginPage() {
       <div className="auth-card" data-testid="auth-card">
         <div className="auth-brand">
           <div className="brand-mark" aria-hidden>
-            ◎
+            â—Ž
           </div>
           <div>
             <div className="auth-title">PitchProof Vigil</div>
@@ -117,7 +130,21 @@ export function LoginPage() {
           onClick={submit}
           disabled={busy}
         >
-          {busy ? "Working…" : mode === "register" ? "Create organization" : "Sign in"}
+          {busy ? "Workingâ€¦" : mode === "register" ? "Create organization" : "Sign in"}
+        </button>
+
+        <div className="auth-divider" data-testid="auth-divider">
+          <span>or</span>
+        </div>
+
+        <button
+          className="btn btn-ghost"
+          style={{ width: "100%" }}
+          data-testid="demo-login"
+          onClick={startDemo}
+          disabled={demoBusy}
+        >
+          {demoBusy ? "Starting demo..." : "Explore the live demo (no signup)"}
         </button>
 
         <div className="auth-toggle">

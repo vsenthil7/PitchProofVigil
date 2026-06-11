@@ -61,6 +61,18 @@ async def login(
     return TokenResponse(access_token=token)
 
 
+@router.post("/demo", response_model=TokenResponse)
+async def demo_login(
+    session: AsyncSession = Depends(db_session),
+    settings: Settings = Depends(get_settings_dep),
+) -> TokenResponse:
+    """Bootstrap a populated demo org (one user per role) and sign in as its
+    owner. Idempotent. Lets anyone try the product without registering."""
+    auth = AuthService(session, settings)
+    token = await auth.seed_demo()
+    return TokenResponse(access_token=token)
+
+
 @router.get("/me", response_model=MeResponse)
 async def me(
     principal: Principal = Depends(get_principal),

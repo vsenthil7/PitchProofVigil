@@ -1,4 +1,4 @@
-import {
+﻿import {
   createContext,
   useCallback,
   useContext,
@@ -12,6 +12,7 @@ import type { Session } from "../lib/types";
 interface AuthState {
   session: Session | null;
   login: (tenantId: string, email: string, password: string) => Promise<void>;
+  demoLogin: () => Promise<void>;
   register: (
     tenantName: string,
     slug: string,
@@ -24,7 +25,7 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
-// In-memory session only — no localStorage (unsupported in this runtime, and
+// In-memory session only â€” no localStorage (unsupported in this runtime, and
 // keeping tokens out of storage is the safer default anyway).
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -47,6 +48,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [],
   );
+
+  const demoLogin = useCallback(async () => {
+    const { access_token } = await api.demoLogin();
+    setToken(access_token);
+    const me = await api.me();
+    setSession({
+      token: access_token,
+      tenantId: me.tenant_id,
+      email: me.email ?? "",
+      role: me.role,
+      tenantName: me.tenant_name,
+      tenants: me.tenants,
+    });
+  }, []);
 
   const register = useCallback(
     async (tenantName: string, slug: string, email: string, password: string) => {
@@ -79,8 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ session, login, register, logout, switchTenant }),
-    [session, login, register, logout, switchTenant],
+    () => ({ session, login, demoLogin, register, logout, switchTenant }),
+    [session, login, demoLogin, register, logout, switchTenant],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

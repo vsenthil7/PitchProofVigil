@@ -88,6 +88,10 @@ export const api = {
     );
   },
 
+  async demoLogin(): Promise<TokenResponse> {
+    return jsonOrThrow(await fetch("/api/auth/demo", { method: "POST", headers: authHeaders() }));
+  },
+
   async createApiKey(name: string, role: Role): Promise<{ api_key: string; prefix: string }> {
     return jsonOrThrow(
       await fetch("/api/auth/api-keys", {

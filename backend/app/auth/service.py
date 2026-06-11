@@ -210,6 +210,41 @@ class AuthService:
             raise AuthError("Tenant not found.", status_code=404)
         return tenant
 
+    async def seed_demo(self) -> str:
+        """Idempotently create a demo organization with one user per role and
+        return an owner-scoped access token. Lets a judge land in a populated,
+        multi-role org without manual registration. Safe to call repeatedly:
+        the org and users are created only if missing.
+        """
+        slug = "demo-worldcup"
+        owner_email = "owner@demo.worldcup"
+        password = "demo-pass-1234"
+        tenant = await self.tenants.get_by_slug(slug)
+        if tenant is None:
+            tenant = await self.tenants.create("World Cup Demo Org", slug)
+            await self.users.create(
+                User(tenant_id=tenant.id, email=owner_email,
+                     hashed_password=hash_password(password), role=Role.OWNER)
+            )
+        # Ensure one active user per non-owner role exists.
+        for role, email in (
+            (Role.ADMIN, "admin@demo.worldcup"),
+            (Role.OPERATOR, "operator@demo.worldcup"),
+            (Role.VIEWER, "viewer@demo.worldcup"),
+        ):
+            if await self.users.get_by_email(tenant.id, email) is None:
+                await self.users.create(
+                    User(tenant_id=tenant.id, email=email,
+                         hashed_password=hash_password(password), role=role)
+                )
+        # A demo org must never be left disabled.
+        if not tenant.is_active:
+            await self.tenants.set_active(tenant.id, True)
+        owner = await self.users.get_by_email(tenant.id, owner_email)
+        return create_access_token(
+            owner.id, tenant.id, owner.role.value, self.settings
+        )
+
     async def create_api_key(
         self, tenant_id: str, name: str, role: Role
     ) -> tuple[str, APIKey]:
