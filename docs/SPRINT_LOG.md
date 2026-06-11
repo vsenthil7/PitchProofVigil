@@ -200,3 +200,34 @@ Commits: 1a422b9 (backend feat), aa8606f (frontend UI + E2E harness fix).
 | Org-lifecycle feature | DONE (1a422b9 + aa8606f) |
 | S2 live Google Cloud | NEXT |
 | S5 demo seed + one-click demo login | planned |
+
+
+## S5 Demo seed + one-click demo login  [GREEN, submittable]
+
+Feature: POST /api/auth/demo idempotently creates a World Cup Demo Org with one
+user per role (owner/admin/operator/viewer, password demo-pass-1234) and signs
+in as owner. Login page has an Explore-the-live-demo button (data-testid
+demo-login). Lets a judge try the full multi-role + org-lifecycle product with
+zero signup. Re-enables the demo org if a prior run disabled it.
+
+Backend: AuthService.seed_demo + /api/auth/demo endpoint (public, like login).
+Frontend: api.demoLogin, useAuth.demoLogin, LoginPage button.
+
+Tests: 6 backend (test_demo_seed.py) + 2 E2E (demo.spec.ts).
+VERIFIED: backend 526 passed / 100pct cov; E2E 39 passed / 2 skipped / 0 failed.
+Commit 73355be.
+
+Demo credentials (for the deck / judges):
+  Owner    owner@demo.worldcup
+  Admin    admin@demo.worldcup
+  Operator operator@demo.worldcup
+  Viewer   viewer@demo.worldcup
+  Password demo-pass-1234  (or just click Explore the live demo)
+
+| Sprint | Status |
+|--------|--------|
+| S1 E2E all-green | DONE |
+| Org-lifecycle | DONE |
+| S5 demo seed + one-click login | DONE (73355be) |
+| S2 live Google Cloud | NEXT |
+| S4 outbound API audit trail | planned |
