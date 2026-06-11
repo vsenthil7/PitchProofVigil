@@ -1,4 +1,4 @@
-"""Evaluation results table."""
+﻿"""Evaluation results table."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import Column, Index
 from sqlmodel import Field, SQLModel
 
-from app.db.models._base import JSONType, utcnow, uuid_str
+from app.db.models._base import AwareDateTime, JSONType, utcnow, uuid_str
 
 
 class EvaluationRow(SQLModel, table=True):
@@ -25,4 +25,4 @@ class EvaluationRow(SQLModel, table=True):
     summary: str
     findings: list = Field(default_factory=list, sa_column=Column(JSONType))
     duration_ms: float = Field(default=0.0)
-    created_at: datetime = Field(default_factory=utcnow, index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True, sa_type=AwareDateTime)

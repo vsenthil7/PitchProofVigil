@@ -1,4 +1,4 @@
-"""Governance tables: gate policies, gate decisions, golden datasets."""
+﻿"""Governance tables: gate policies, gate decisions, golden datasets."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import Column, Index, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-from app.db.models._base import JSONType, utcnow, uuid_str
+from app.db.models._base import AwareDateTime, JSONType, utcnow, uuid_str
 
 
 class GatePolicyRow(SQLModel, table=True):
@@ -23,7 +23,7 @@ class GatePolicyRow(SQLModel, table=True):
     fail_on_any_blocking: bool = Field(default=True)
     evaluator_policies: dict = Field(default_factory=dict, sa_column=Column(JSONType))
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)
 
 
 class GateDecisionRow(SQLModel, table=True):
@@ -44,7 +44,7 @@ class GateDecisionRow(SQLModel, table=True):
     regressions: list = Field(default_factory=list, sa_column=Column(JSONType))
     reason: str
     trace_count: int = Field(default=0)
-    created_at: datetime = Field(default_factory=utcnow, index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True, sa_type=AwareDateTime)
 
 
 class GoldenDatasetRow(SQLModel, table=True):
@@ -56,8 +56,8 @@ class GoldenDatasetRow(SQLModel, table=True):
     name: str = Field(index=True)
     description: str = Field(default="")
     examples: list = Field(default_factory=list, sa_column=Column(JSONType))
-    created_at: datetime = Field(default_factory=utcnow)
-    updated_at: datetime = Field(default_factory=utcnow)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)
+    updated_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)
 
 
 class CostBudgetRow(SQLModel, table=True):
@@ -73,7 +73,7 @@ class CostBudgetRow(SQLModel, table=True):
     monthly_usd_cap: float = Field(default=100.0)
     alert_threshold_pct: float = Field(default=0.8)  # alert at 80% of cap
     month: str = Field(index=True)  # "YYYY-MM"
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)
 
 
 class CostEventRow(SQLModel, table=True):
@@ -89,4 +89,4 @@ class CostEventRow(SQLModel, table=True):
     input_tokens: int
     output_tokens: int
     cost_usd: float
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)

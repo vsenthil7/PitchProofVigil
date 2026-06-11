@@ -1,4 +1,4 @@
-"""Operational tables: alerts (audit, webhooks added in later sprints)."""
+﻿"""Operational tables: alerts (audit, webhooks added in later sprints)."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -7,7 +7,7 @@ from sqlalchemy import Column, Index
 from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, SQLModel
 
-from app.db.models._base import AlertChannel, JSONType, utcnow, uuid_str
+from app.db.models._base import AwareDateTime, AlertChannel, JSONType, utcnow, uuid_str
 
 
 class AlertRow(SQLModel, table=True):
@@ -22,4 +22,4 @@ class AlertRow(SQLModel, table=True):
     channel: AlertChannel = Field(sa_column=Column(SAEnum(AlertChannel)))
     context: dict = Field(default_factory=dict, sa_column=Column(JSONType))
     delivered: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=utcnow, index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True, sa_type=AwareDateTime)

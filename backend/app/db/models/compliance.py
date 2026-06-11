@@ -1,4 +1,4 @@
-"""Compliance evidence export job tracking."""
+﻿"""Compliance evidence export job tracking."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import Column
 from sqlmodel import Field, SQLModel
 
-from app.db.models._base import JSONType, utcnow, uuid_str
+from app.db.models._base import AwareDateTime, JSONType, utcnow, uuid_str
 
 
 class ComplianceExportJobRow(SQLModel, table=True):
@@ -24,5 +24,5 @@ class ComplianceExportJobRow(SQLModel, table=True):
     download_url: str | None = Field(default=None)
     checksum_manifest: dict = Field(default_factory=dict, sa_column=Column(JSONType))
     error_detail: str | None = Field(default=None)
-    created_at: datetime = Field(default_factory=utcnow)
-    completed_at: datetime | None = Field(default=None)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)
+    completed_at: datetime | None = Field(default=None, sa_type=AwareDateTime)

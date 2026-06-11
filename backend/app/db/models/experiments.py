@@ -1,4 +1,4 @@
-"""Experiment management tables: experiments, runs, per-item results."""
+﻿"""Experiment management tables: experiments, runs, per-item results."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import Column, Index
 from sqlmodel import Field, SQLModel
 
-from app.db.models._base import JSONType, utcnow, uuid_str
+from app.db.models._base import AwareDateTime, JSONType, utcnow, uuid_str
 
 
 class ExperimentRow(SQLModel, table=True):
@@ -21,8 +21,8 @@ class ExperimentRow(SQLModel, table=True):
     description: str = Field(default="")
     dataset_id: str = Field(foreign_key="golden_datasets.id", index=True)
     evaluator_ids: list = Field(default_factory=list, sa_column=Column(JSONType))
-    created_at: datetime = Field(default_factory=utcnow)
-    last_run_at: datetime | None = Field(default=None)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)
+    last_run_at: datetime | None = Field(default=None, sa_type=AwareDateTime)
 
 
 class ExperimentRunRow(SQLModel, table=True):
@@ -43,8 +43,8 @@ class ExperimentRunRow(SQLModel, table=True):
     ab_winner: str | None = Field(default=None)
     ab_delta_score: float | None = Field(default=None)
     ab_cohens_d: float | None = Field(default=None)
-    created_at: datetime = Field(default_factory=utcnow)
-    completed_at: datetime | None = Field(default=None)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)
+    completed_at: datetime | None = Field(default=None, sa_type=AwareDateTime)
 
 
 class ExperimentItemResultRow(SQLModel, table=True):
@@ -62,4 +62,4 @@ class ExperimentItemResultRow(SQLModel, table=True):
     verdicts: dict = Field(default_factory=dict, sa_column=Column(JSONType))
     aggregate_score: float | None = Field(default=None)
     passed: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)

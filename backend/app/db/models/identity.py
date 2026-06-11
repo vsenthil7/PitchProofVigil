@@ -1,4 +1,4 @@
-"""Identity & tenancy tables: tenants, users, API keys."""
+﻿"""Identity & tenancy tables: tenants, users, API keys."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -7,7 +7,7 @@ from sqlalchemy import Column, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, SQLModel
 
-from app.db.models._base import JSONType, Role, utcnow, uuid_str
+from app.db.models._base import AwareDateTime, JSONType, Role, utcnow, uuid_str
 
 
 class Tenant(SQLModel, table=True):
@@ -16,7 +16,7 @@ class Tenant(SQLModel, table=True):
     id: str = Field(default_factory=uuid_str, primary_key=True)
     name: str = Field(index=True)
     slug: str = Field(sa_column_kwargs={"unique": True})
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)
     is_active: bool = Field(default=True)
 
 
@@ -30,7 +30,7 @@ class User(SQLModel, table=True):
     hashed_password: str
     role: Role = Field(sa_column=Column(SAEnum(Role)))
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)
 
 
 class APIKey(SQLModel, table=True):
@@ -42,19 +42,19 @@ class APIKey(SQLModel, table=True):
     prefix: str = Field(index=True)
     hashed_secret: str
     role: Role = Field(sa_column=Column(SAEnum(Role)))
-    created_at: datetime = Field(default_factory=utcnow)
-    last_used_at: datetime | None = Field(default=None)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)
+    last_used_at: datetime | None = Field(default=None, sa_type=AwareDateTime)
     revoked: bool = Field(default=False)
 
 
 class TenantMembership(SQLModel, table=True):
     """A user's access to a tenant other than (or including) their home tenant.
 
-    The ``users`` row still carries a user's *home* tenant and role — that's
+    The ``users`` row still carries a user's *home* tenant and role â€” that's
     unchanged. Memberships are additive: they let one identity operate across
     tenants (e.g. a platform owner, or a consultant with access to two orgs),
     each with its own role in that tenant. A user's effective set of tenants is
-    their home tenant ∪ their memberships. The pair (user_id, tenant_id) is
+    their home tenant âˆª their memberships. The pair (user_id, tenant_id) is
     unique so a user has at most one role per tenant.
     """
 
@@ -67,7 +67,7 @@ class TenantMembership(SQLModel, table=True):
     user_id: str = Field(foreign_key="users.id", index=True)
     tenant_id: str = Field(foreign_key="tenants.id", index=True)
     role: Role = Field(sa_column=Column(SAEnum(Role)))
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)
 
 
 class SSOConfigRow(SQLModel, table=True):
@@ -91,5 +91,5 @@ class SSOConfigRow(SQLModel, table=True):
         sa_column=Column(JSONType),
     )
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=utcnow)
-    updated_at: datetime = Field(default_factory=utcnow)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)
+    updated_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)

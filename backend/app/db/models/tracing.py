@@ -1,4 +1,4 @@
-"""Trace & span tables."""
+﻿"""Trace & span tables."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import Column, Index, String
 from sqlmodel import Field, SQLModel
 
-from app.db.models._base import JSONType, utcnow, uuid_str
+from app.db.models._base import AwareDateTime, JSONType, utcnow, uuid_str
 
 
 class TraceRow(SQLModel, table=True):
@@ -22,7 +22,7 @@ class TraceRow(SQLModel, table=True):
     model: str | None = Field(default=None)
     latency_ms: float = Field(default=0.0)
     grounded_facts: dict = Field(default_factory=dict, sa_column=Column(JSONType))
-    created_at: datetime = Field(default_factory=utcnow, index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True, sa_type=AwareDateTime)
 
 
 class SpanRow(SQLModel, table=True):
@@ -37,4 +37,4 @@ class SpanRow(SQLModel, table=True):
     status: str = Field(default="OK")
     duration_ms: float = Field(default=0.0)
     attributes: dict = Field(default_factory=dict, sa_column=Column(JSONType))
-    start_time: datetime = Field(default_factory=utcnow)
+    start_time: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)

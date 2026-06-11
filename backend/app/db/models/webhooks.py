@@ -1,4 +1,4 @@
-"""Webhook subscription table — per-tenant, per-event-type delivery targets."""
+﻿"""Webhook subscription table â€” per-tenant, per-event-type delivery targets."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import Index, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-from app.db.models._base import utcnow, uuid_str
+from app.db.models._base import AwareDateTime, utcnow, uuid_str
 
 
 class WebhookSubscriptionRow(SQLModel, table=True):
@@ -22,6 +22,6 @@ class WebhookSubscriptionRow(SQLModel, table=True):
     event_type: str = Field(index=True)
     secret: str = Field(default="")
     active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=utcnow)
-    last_delivery_at: datetime | None = Field(default=None)
+    created_at: datetime = Field(default_factory=utcnow, sa_type=AwareDateTime)
+    last_delivery_at: datetime | None = Field(default=None, sa_type=AwareDateTime)
     last_status: int | None = Field(default=None)
