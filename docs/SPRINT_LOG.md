@@ -231,3 +231,35 @@ Demo credentials (for the deck / judges):
 | S5 demo seed + one-click login | DONE (73355be) |
 | S2 live Google Cloud | NEXT |
 | S4 outbound API audit trail | planned |
+
+
+## S7/S8 Vultr deploy  [LIVE]
+
+Public demo: http://45.77.52.54:8090 (Postgres-backed, mocks-first).
+Shared host already runs atrio (8080) + spoofvane (8081); PitchProof remapped to
+frontend 8090, backend 8091, postgres 5433 via docker-compose.override.yml using
+the !override tag (base ports list must be REPLACED, not merged - compose
+appends list items by default, which double-bound 8000/5432/8080 and collided).
+
+Two real Postgres-only bugs surfaced at deploy (SQLite masked both; all unit
+tests had passed):
+1. pip-audit --strict build gate failed on 28 CVEs. Fixed properly (commit
+   8718f89): upgraded fastapi 0.115.6->0.136.3 (starlette 1.2.1), python-jose
+   3.3->3.5, python-multipart 0.0.20->0.0.27, python-dotenv 1.0.1->1.2.2, pytest
+   8.3.4->9.0.3, google-genai 0.3->1.39.1 (drops vuln pillow). Removed the unused
+   arize-phoenix SERVER pkg (vuln strawberry-graphql + sqlean C++ build) - backend
+   only needs arize-phoenix-otel to export OTLP to the phoenix container. Verified
+   526 tests + pip-audit --strict clean.
+2. asyncpg DataError: aware datetime bound to naive TIMESTAMP column (demo/register
+   500). Fixed (commit 0b8bc48): AwareDateTime type on all 28 datetime cols +
+   migration b1a2c3d4e5f6 (TIMESTAMP WITH TIME ZONE). 6 unit tests; 532 total.
+
+Deploy verified: frontend 200, backend /health 200, POST /api/auth/demo 200.
+RAM head-room fine (13Gi free of 15Gi).
+
+| Item | Status |
+|------|--------|
+| Vultr public demo | LIVE (8090) |
+| Security CVEs patched, --strict gate green | DONE (8718f89) |
+| Postgres tz-aware timestamps | DONE (0b8bc48) |
+| Backend tests | 532 / 100pct |
