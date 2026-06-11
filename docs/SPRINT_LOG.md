@@ -158,3 +158,45 @@ Live-access notes:
 ---
 
 (new sprints appended here)
+
+
+## Sprint 1 CLOSED + Org-lifecycle feature  [GREEN, submittable]
+
+RESOLVED the E2E saboteur that broke every run this session: globalSetup was
+wiping e2e_test.db AFTER the backend webServer created the schema (race), leaving
+the running server on an empty DB -> 500 no-such-table. Fix: moved the DB wipe
+INTO the backend webServer command (python -c remove && uvicorn), strictly
+sequential. Also: backend webServer url:/health readiness (not port), and
+reuseExistingServer:false for backend only.
+
+O1-O5 all fixed and GREEN:
+- O1 eval-row 15 (red-team pack)
+- O2 tenant-switcher test now respects platform-owner-sees-all design (disabled
+     iff <=1 option), not a brittle assume-1-tenant.
+- O3 health-fail: /health and /ready were not proxied (only /api was). Added
+     both to vite proxy (dev + preview).
+- O4 trend-empty unique per-label testid.
+- O5 webhook delete: list() now returns ACTIVE webhooks only, so deactivate
+     (delete) empties the list. Backend delete is soft (deactivate) by design.
+
+NEW FEATURE - Organization lifecycle (owner-only):
+- Backend (commit 1a422b9): PATCH /api/auth/tenants/{id}/active; disabled orgs
+     block login (403) and tenant-switch; cannot disable own active org (409);
+     is_active surfaced in /me and /tenants. 11 tests.
+- Frontend (commit aa8606f): OrganizationsPage (Administer nav, owner-only),
+     list orgs with active/disabled status + Disable/Enable, current-session
+     org guarded. API client setTenantActive. 3 E2E tests (2 run, 1 skip).
+
+VERIFIED GREEN TOGETHER:
+- Backend: 520 passed, 100.00% coverage
+- E2E: 37 passed, 2 skipped, 0 failed
+
+Commits: 1a422b9 (backend feat), aa8606f (frontend UI + E2E harness fix).
+
+| Sprint | Status |
+|--------|--------|
+| S0 baseline | DONE (1fac458) |
+| S1 E2E all-green | DONE (aa8606f) |
+| Org-lifecycle feature | DONE (1a422b9 + aa8606f) |
+| S2 live Google Cloud | NEXT |
+| S5 demo seed + one-click demo login | planned |
